@@ -65,15 +65,11 @@ static MppCodingTypeInfo support_list[] = {
 #if HAVE_JPEGD
     {   MPP_CTX_DEC,    MPP_VIDEO_CodingMJPEG,      "dec",  "jpeg",         },
 #endif
-#if HAVE_H264E
     {   MPP_CTX_ENC,    MPP_VIDEO_CodingAVC,        "enc",  "h.264/AVC",    },
-#endif
 #if HAVE_JPEGE
     {   MPP_CTX_ENC,    MPP_VIDEO_CodingMJPEG,      "enc",  "jpeg",         },
 #endif
-#if HAVE_H265E
     {   MPP_CTX_ENC,    MPP_VIDEO_CodingHEVC,       "enc",  "h265",         },
-#endif
 #if HAVE_VP8E
     {   MPP_CTX_ENC,    MPP_VIDEO_CodingVP8,        "enc",  "vp8",          }
 #endif

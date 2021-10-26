@@ -30,6 +30,7 @@ set(MPP_DRIVER
     driver/mpp_device.c
     driver/mpp_service.c
     driver/vcodec_service.c
+	driver/mpp_vcodec_clinet.c
 )
 
 add_library(osal STATIC
@@ -50,6 +51,7 @@ add_library(osal STATIC
     mpp_mem.cpp
     mpp_env.cpp
     mpp_log.cpp
+	mpp_chan.cpp
     osal_2str.c
     # Those files have a compiler marco protection, so only target
     # OS will be built

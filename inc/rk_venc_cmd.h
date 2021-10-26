@@ -159,7 +159,6 @@ typedef enum MppEncBaseCfgChange_e {
 
 typedef struct MppEncBaseCfg_t {
     RK_U32  change;
-
     RK_S32  low_delay;
 } MppEncBaseCfg;
 
@@ -837,6 +836,7 @@ typedef enum MppEncH265CfgChange_e {
     MPP_ENC_H265_CFG_RC_I_QP_CHANGE             = (1 << 19),
     MPP_ENC_H265_CFG_RC_MAX_QP_STEP_CHANGE      = (1 << 21),
     MPP_ENC_H265_CFG_RC_IP_DELTA_QP_CHANGE      = (1 << 20),
+    MPP_ENC_H265_CFG_PU_CHANGE                  = (1 << 22),
     MPP_ENC_H265_CFG_CHANGE_ALL                 = (0xFFFFFFFF),
 } MppEncH265CfgChange;
 
@@ -862,12 +862,14 @@ typedef struct MppEncH265CuCfg_t {
     RK_U32  cu4x4_en;                               /*default: 1 */
 
     // intra pred
-    RK_U32  constrained_intra_pred_flag;            /*default: 0 */
-    RK_U32  strong_intra_smoothing_enabled_flag;    /*INTRA_SMOOTH*/
     RK_U32  pcm_enabled_flag;                       /*default: 0, enable ipcm*/
     RK_U32  pcm_loop_filter_disabled_flag;
 
 } MppEncH265CuCfg;
+typedef struct MppEncH265PuCfg_t {
+    RK_U32  constrained_intra_pred_flag;            /*default: 0 */
+    RK_U32  strg_intra_smth_disable;    /*INTRA_SMOOTH*/
+} MppEncH265PuCfg;
 
 typedef struct MppEncH265RefCfg_t {
     RK_U32  num_lt_ref_pic;                         /*default: 0*/
@@ -912,13 +914,10 @@ typedef struct MppEncH265Cfg_t {
     RK_S32              tier;
 
     /* constraint intra prediction flag */
-    RK_S32              const_intra_pred;
     RK_S32              ctu_size;
     RK_S32              max_cu_size;
     RK_S32              tmvp_enable;
     RK_S32              amp_enable;
-    RK_S32              wpp_enable;
-    RK_S32              merge_range;
     RK_S32              sao_enable;
     RK_U32              num_ref;
 
@@ -927,13 +926,9 @@ typedef struct MppEncH265Cfg_t {
     RK_S32              min_qp;
     RK_S32              max_i_qp;
     RK_S32              min_i_qp;
-    RK_S32              ip_qp_delta;
-    RK_S32              max_delta_qp;
     RK_S32              intra_qp;
-    RK_S32              gop_delta_qp;
     RK_S32              qp_init;
     RK_S32              qp_max_step;
-    RK_S32              raw_dealt_qp;
     RK_U8               qpmax_map[8];
     RK_U8               qpmin_map[8];
     RK_S32              qpmap_mode;
@@ -949,6 +944,7 @@ typedef struct MppEncH265Cfg_t {
     RK_S32              depend_slice_arg;
 
     MppEncH265CuCfg      cu_cfg;
+    MppEncH265PuCfg      pu_cfg;
     MppEncH265SliceCfg   slice_cfg;
     MppEncH265EntropyCfg entropy_cfg;
     MppEncH265TransCfg   trans_cfg;
@@ -1101,9 +1097,20 @@ typedef struct MppEncROIRegion_t {
  */
 typedef struct MppEncROICfg_t {
     RK_U32              number;        /**< ROI rectangle number */
-    MppEncROIRegion     *regions;      /**< ROI parameters */
+    MppEncROIRegion     regions[8];      /**< ROI parameters */
 } MppEncROICfg;
 
+typedef struct MppEncROICfg2_t {
+    MppBuffer          base_cfg_buf;
+    MppBuffer          qp_cfg_buf;
+    MppBuffer          amv_cfg_buf;
+    MppBuffer          mv_cfg_buf;
+    RK_U32             roi_qp_en    : 1;
+    RK_U32             roi_amv_en   : 1;
+    RK_U32             roi_mv_en    : 1;
+    RK_U32             reserve_bits : 29;
+    RK_U32             reserve[3];
+} MppEncROICfg2;
 /*
  * Mpp OSD parameter
  *
@@ -1202,6 +1209,58 @@ typedef struct MppEncOSDData2_t {
     MppEncOSDRegion2    region[8];
 } MppEncOSDData2;
 
+typedef struct EncOSDInvCfg_t {
+    RK_U32       yg_inv_en;
+    RK_U32       uvrb_inv_en;
+    RK_U32       alpha_inv_en;
+    RK_U32       inv_sel;
+    RK_U32       uv_sw_inv_en;
+    RK_U32       inv_size;
+    RK_U32       inv_stride;
+    RK_S32       inv_buf_fd;
+} EncOSDInvCfg;
+
+typedef struct EncOSDAlphaCfg_t {
+    RK_U32 alpha_swap ;
+    RK_U32 bg_alpha;
+    RK_U32 fg_alpha;
+    RK_U32 fg_alpha_sel;
+} EncOSDAlphaCfg;
+
+typedef struct EncOSDQpCfg_t {
+    RK_U32 qp_adj_en  ;
+    RK_U32 qp_adj_sel ;
+    RK_U32 qp         ;
+    RK_U32 qp_max     ;
+    RK_U32 qp_min     ;
+    RK_U32 qp_prj     ;
+} EncOSDQpCfg;
+
+typedef struct MppEncOSDRegion3_t {
+    RK_U32          enable;
+    RK_U32          range_trns_en;
+    RK_U32          range_trns_sel;
+    RK_U32          fmt;
+    RK_U32          rbuv_swap;
+    RK_U32          lt_x;
+    RK_U32          lt_y;
+    RK_U32          rb_x;
+    RK_U32          rb_y;
+    RK_U32          stride;
+    RK_U32          ch_ds_mode;
+    RK_U32          osd_endn;
+    EncOSDInvCfg    inv_cfg;
+    EncOSDAlphaCfg  alpha_cfg;
+    EncOSDQpCfg     qp_cfg;
+
+    RK_S32          osd_buf_fd;
+    RK_U8           lut[8];  //vuy vuy alpha
+} MppEncOSDRegion3;
+
+typedef struct MppEncOSDData3_t {
+    RK_U32              num_region;
+    MppEncOSDRegion3    region[8];
+} MppEncOSDData3;
 typedef struct MppEncUserData_t {
     RK_U32              len;
     void                *pdata;

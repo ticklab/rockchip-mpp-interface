@@ -379,6 +379,18 @@ void    mpp_frame_set_mastering_display(MppFrame frame, MppFrameMasteringDisplay
 MppFrameContentLightMetadata mpp_frame_get_content_light(const MppFrame frame);
 void    mpp_frame_set_content_light(MppFrame frame, MppFrameContentLightMetadata content_light);
 
+typedef struct mpp_frame_infos_t {
+    RK_U32  width;
+    RK_U32  height;
+    RK_U32  hor_stride;
+    RK_U32  ver_stride;
+    RK_U32  hor_stride_pixel;
+    RK_U32  offset_x;
+    RK_U32  offset_y;
+    MppFrameFormat fmt;
+    RK_U32  fd;
+} mpp_frame_infos;
+
 /*
  * HDR parameter
  */

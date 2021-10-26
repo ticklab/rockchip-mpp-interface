@@ -20,9 +20,9 @@
 #include "mpp_queue.h"
 #include "mpp_task_impl.h"
 
-#include "mpp_dec.h"
-#include "mpp_enc.h"
 #include "mpp_impl.h"
+#include "mpp_dec_cfg.h"
+#include "mpp_enc_cfg.h"
 
 #define MPP_DBG_FUNCTION                    (0x00000001)
 #define MPP_DBG_PACKET                      (0x00000002)
@@ -174,9 +174,9 @@ public:
     MppTask         mEosTask;
 
     MppCtx          mCtx;
-    MppDec          mDec;
-    MppEnc          mEnc;
-
+//    MppDec          mDec;
+//    MppEnc          mEnc;
+    RK_S32          mChanId;
     RK_U32          mEncVersion;
 
 private:
@@ -189,7 +189,7 @@ private:
     RK_U32          mMultiFrame;
 
     RK_U32          mStatus;
-
+    RK_S32          mClinetFd;
     /* decoder paramter before init */
     MppDecCfgSet    mDecInitcfg;
     RK_U32          mParserFastMode;

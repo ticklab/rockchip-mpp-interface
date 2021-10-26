@@ -99,6 +99,7 @@ typedef enum {
     MPP_VIDEO_CodingHEVC,               /**< H.265/HEVC */
     MPP_VIDEO_CodingAVSPLUS,            /**< AVS+ */
     MPP_VIDEO_CodingAVS,                /**< AVS profile=0x20 */
+    MPP_VIDEO_CodingAVS2,               /**< AVS2 */
     MPP_VIDEO_CodingKhronosExtensions = 0x6F000000, /**< Reserved region for introducing Khronos Standard Extensions */
     MPP_VIDEO_CodingVendorStartUnused = 0x7F000000, /**< Reserved region for introducing Vendor Extensions */
     MPP_VIDEO_CodingMax = 0x7FFFFFFF
@@ -136,5 +137,25 @@ typedef void* MppBufferGroup;
 
 typedef void* MppTask;
 typedef void* MppMeta;
+
+typedef struct venc_pack_info_t {
+    RK_U32      flag;
+    RK_U32      packet_offset;
+    RK_U32      packet_len;
+} venc_pack_info;
+
+typedef struct venc_packet_t {
+    RK_U64                  u64phy_addr;
+    RK_U64                  u64vir_addr;
+    RK_U32                  len;
+    RK_U32                  buf_size;
+
+    RK_U64                  u64pts;
+    RK_U32                  flag;
+    RK_U32                  offset;
+    RK_U32                  data_num;
+    venc_pack_info          packet[8];
+} venc_packet;
+
 
 #endif /*__RK_TYPE_H__*/

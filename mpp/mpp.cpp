@@ -29,14 +29,16 @@
 #include "mpp_2str.h"
 
 #include "mpp.h"
-#include "mpp_hal.h"
-
+#include "mpp_soc.h"
+#include "mpp_chan.h"
 #include "mpp_task_impl.h"
 #include "mpp_buffer_impl.h"
 #include "mpp_frame_impl.h"
 #include "mpp_packet_impl.h"
 
 #include "mpp_dec_cfg_impl.h"
+#include "mpp_vcodec_clinet.h"
+#include "mpp_enc_cfg_impl.h"
 
 #define MPP_TEST_FRAME_SIZE     SZ_1M
 #define MPP_TEST_PACKET_SIZE    SZ_512K
@@ -62,45 +64,20 @@ static void *list_wraper_frame(void *arg)
 
 Mpp::Mpp(MppCtx ctx = NULL)
     : mPackets(NULL),
-      mFrames(NULL),
-      mTimeStamps(NULL),
-      mPacketPutCount(0),
-      mPacketGetCount(0),
-      mFramePutCount(0),
-      mFrameGetCount(0),
-      mTaskPutCount(0),
-      mTaskGetCount(0),
-      mPacketGroup(NULL),
-      mFrameGroup(NULL),
-      mExternalFrameGroup(0),
-      mUsrInPort(NULL),
-      mUsrOutPort(NULL),
-      mMppInPort(NULL),
-      mMppOutPort(NULL),
-      mInputTaskQueue(NULL),
-      mOutputTaskQueue(NULL),
-      mInputTimeout(MPP_POLL_BUTT),
-      mOutputTimeout(MPP_POLL_BUTT),
-      mInputTask(NULL),
-      mEosTask(NULL),
       mCtx(ctx),
-      mDec(NULL),
-      mEnc(NULL),
       mEncVersion(0),
       mType(MPP_CTX_BUTT),
       mCoding(MPP_VIDEO_CodingUnused),
-      mInitDone(0),
-      mMultiFrame(0),
-      mStatus(0),
+      mClinetFd(-1),
       mExtraPacket(NULL),
       mDump(NULL)
 {
     mpp_env_get_u32("mpp_debug", &mpp_debug, 0);
-
     memset(&mDecInitcfg, 0, sizeof(mDecInitcfg));
     mpp_dec_cfg_set_default(&mDecInitcfg);
     mDecInitcfg.base.enable_vproc = 1;
     mDecInitcfg.base.change  |= MPP_DEC_CFG_CHANGE_ENABLE_VPROC;
+    mOutputTimeout = MPP_POLL_BLOCK;
 
     mpp_dump_init(&mDump);
 }
@@ -108,6 +85,9 @@ Mpp::Mpp(MppCtx ctx = NULL)
 MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
 {
     MPP_RET ret = MPP_NOK;
+    vcodec_attr attr;
+
+
 
     if (!mpp_check_soc_cap(type, coding)) {
         mpp_err("unable to create %s %s for soc %s unsupported\n",
@@ -122,101 +102,32 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
         return MPP_NOK;
     }
 
-    mpp_ops_init(mDump, type, coding);
-
-    mType = type;
-    mCoding = coding;
-
-    mpp_task_queue_init(&mInputTaskQueue, this, "input");
-    mpp_task_queue_init(&mOutputTaskQueue, this, "output");
-
-    switch (mType) {
-    case MPP_CTX_DEC : {
-        mPackets    = new mpp_list(list_wraper_packet);
-        mFrames     = new mpp_list(list_wraper_frame);
-        mTimeStamps = new mpp_list(list_wraper_packet);
-
-        if (mInputTimeout == MPP_POLL_BUTT)
-            mInputTimeout = MPP_POLL_NON_BLOCK;
-
-        if (mOutputTimeout == MPP_POLL_BUTT)
-            mOutputTimeout = MPP_POLL_NON_BLOCK;
-
-        if (mCoding != MPP_VIDEO_CodingMJPEG) {
-            mpp_buffer_group_get_internal(&mPacketGroup, MPP_BUFFER_TYPE_ION);
-            mpp_buffer_group_limit_config(mPacketGroup, 0, 3);
-
-            mpp_task_queue_setup(mInputTaskQueue, 4);
-            mpp_task_queue_setup(mOutputTaskQueue, 4);
-        } else {
-            mpp_task_queue_setup(mInputTaskQueue, 1);
-            mpp_task_queue_setup(mOutputTaskQueue, 1);
-        }
-
-        mUsrInPort  = mpp_task_queue_get_port(mInputTaskQueue,  MPP_PORT_INPUT);
-        mUsrOutPort = mpp_task_queue_get_port(mOutputTaskQueue, MPP_PORT_OUTPUT);
-        mMppInPort  = mpp_task_queue_get_port(mInputTaskQueue,  MPP_PORT_OUTPUT);
-        mMppOutPort = mpp_task_queue_get_port(mOutputTaskQueue, MPP_PORT_INPUT);
-
-        MppDecInitCfg cfg = {
-            coding,
-            this,
-            &mDecInitcfg,
-        };
-
-        ret = mpp_dec_init(&mDec, &cfg);
-        if (ret)
-            break;
-        ret = mpp_dec_start(mDec);
-        if (ret)
-            break;
-        mInitDone = 1;
-    } break;
-    case MPP_CTX_ENC : {
-        mFrames     = new mpp_list(NULL);
-        mPackets    = new mpp_list(list_wraper_packet);
-
-        if (mInputTimeout == MPP_POLL_BUTT)
-            mInputTimeout = MPP_POLL_BLOCK;
-
-        if (mOutputTimeout == MPP_POLL_BUTT)
-            mOutputTimeout = MPP_POLL_NON_BLOCK;
-
-        mpp_buffer_group_get_internal(&mPacketGroup, MPP_BUFFER_TYPE_ION);
-        mpp_buffer_group_get_internal(&mFrameGroup, MPP_BUFFER_TYPE_ION);
-
-        mpp_task_queue_setup(mInputTaskQueue, 1);
-        mpp_task_queue_setup(mOutputTaskQueue, 8);
-
-        mUsrInPort  = mpp_task_queue_get_port(mInputTaskQueue,  MPP_PORT_INPUT);
-        mUsrOutPort = mpp_task_queue_get_port(mOutputTaskQueue, MPP_PORT_OUTPUT);
-        mMppInPort  = mpp_task_queue_get_port(mInputTaskQueue,  MPP_PORT_OUTPUT);
-        mMppOutPort = mpp_task_queue_get_port(mOutputTaskQueue, MPP_PORT_INPUT);
-
-        MppEncInitCfg cfg = {
-            coding,
-            this,
-        };
-
-        ret = mpp_enc_init_v2(&mEnc, &cfg);
-        if (ret)
-            break;
-        ret = mpp_enc_start_v2(mEnc);
-        if (ret)
-            break;
-        mInitDone = 1;
-    } break;
-    default : {
-        mpp_err("Mpp error type %d\n", mType);
-    } break;
+    attr.chan_id = mpp_set_chan(this, type);
+    if (attr.chan_id < 0) {
+        mpp_log("chan is big max chan num");
+        return MPP_NOK;
+    }
+    attr.coding = coding;
+    attr.type = type;
+    mClinetFd = mpp_vcodec_open();
+    if (mClinetFd < 0) {
+        mpp_err("mpp_vcodec dev open fail");
+        return MPP_NOK;
     }
 
-
-    if (!mInitDone) {
-        mpp_err("error found on mpp initialization\n");
-        clear();
+    mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr.chan_id);
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(attr), &attr);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
     }
 
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+    }
+
+    mInitDone = 1;
+    mChanId = attr.chan_id;
     return ret;
 }
 
@@ -227,86 +138,53 @@ Mpp::~Mpp ()
 
 void Mpp::clear()
 {
-    // MUST: release listener here
-    if (mFrameGroup)
-        mpp_buffer_group_set_callback((MppBufferGroupImpl *)mFrameGroup,
-                                      NULL, NULL);
 
-    if (mType == MPP_CTX_DEC) {
-        if (mDec) {
-            mpp_dec_stop(mDec);
-            mpp_dec_deinit(mDec);
-            mDec = NULL;
-        }
-    } else {
-        if (mEnc) {
-            mpp_enc_stop_v2(mEnc);
-            mpp_enc_deinit_v2(mEnc);
-            mEnc = NULL;
-        }
+    MPP_RET ret = MPP_OK;
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_DESTROY, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_DESTROY channel fail \n");
     }
-
-    if (mInputTaskQueue) {
-        mpp_task_queue_deinit(mInputTaskQueue);
-        mInputTaskQueue = NULL;
-    }
-    if (mOutputTaskQueue) {
-        mpp_task_queue_deinit(mOutputTaskQueue);
-        mOutputTaskQueue = NULL;
-    }
-
-    mUsrInPort  = NULL;
-    mUsrOutPort = NULL;
-    mMppInPort  = NULL;
-    mMppOutPort = NULL;
-
-    if (mExtraPacket) {
-        mpp_packet_deinit(&mExtraPacket);
-        mExtraPacket = NULL;
-    }
-
-    if (mPackets) {
-        delete mPackets;
-        mPackets = NULL;
-    }
-    if (mFrames) {
-        delete mFrames;
-        mFrames = NULL;
-    }
-    if (mTimeStamps) {
-        delete mTimeStamps;
-        mTimeStamps = NULL;
-    }
-    if (mPacketGroup) {
-        mpp_buffer_group_put(mPacketGroup);
-        mPacketGroup = NULL;
-    }
-    if (mFrameGroup && !mExternalFrameGroup) {
-        mpp_buffer_group_put(mFrameGroup);
-        mFrameGroup = NULL;
-    }
-
     mpp_dump_deinit(&mDump);
 }
 
 MPP_RET Mpp::start()
 {
-    return MPP_OK;
+    MPP_RET ret = MPP_OK;
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_START channel fail \n");
+    }
+    return ret;
 }
 
 MPP_RET Mpp::stop()
 {
-    return MPP_OK;
+    MPP_RET ret = MPP_OK;
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_START channel fail \n");
+    }
+    return ret;
 }
 
 MPP_RET Mpp::pause()
 {
-    return MPP_OK;
+    MPP_RET ret = MPP_OK;
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_PAUSE, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_PAUSE channel fail \n");
+    }
+    return ret;
 }
 
 MPP_RET Mpp::resume()
 {
-    return MPP_OK;
+    MPP_RET ret = MPP_OK;
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_RESUME, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_RESUME channel fail \n");
+    }
+    return ret;
 }
 
 MPP_RET Mpp::put_packet(MppPacket packet)
@@ -486,146 +364,87 @@ MPP_RET Mpp::get_frame(MppFrame *frame)
 
 MPP_RET Mpp::put_frame(MppFrame frame)
 {
-    if (!mInitDone)
-        return MPP_ERR_INIT;
-
-    MPP_RET ret = MPP_NOK;
+    mpp_frame_infos frame_info;
+    MppBuffer buf = NULL;
+    MPP_RET ret = MPP_OK;
     MppStopwatch stopwatch = NULL;
 
+    if (!mInitDone)
+        return MPP_ERR_INIT;
+    mpp_log("put_frame");
     if (mpp_debug & MPP_DBG_TIMING) {
         mpp_frame_set_stopwatch_enable(frame, 1);
         stopwatch = mpp_frame_get_stopwatch(frame);
     }
+    buf = mpp_frame_get_buffer(frame);
+    frame_info.width = mpp_frame_get_width(frame);
+    frame_info.height = mpp_frame_get_height(frame);
+    frame_info.hor_stride = mpp_frame_get_hor_stride(frame);
+    frame_info.ver_stride = mpp_frame_get_ver_stride(frame);
+    frame_info.hor_stride_pixel = mpp_frame_get_hor_stride_pixel(frame);
+    frame_info.offset_x = mpp_frame_get_offset_x(frame);
+    frame_info.offset_y = mpp_frame_get_offset_y(frame);
+    frame_info.fmt = mpp_frame_get_fmt(frame);
+    frame_info.fd = mpp_buffer_get_fd(buf);
 
-    mpp_stopwatch_record(stopwatch, NULL);
-    mpp_stopwatch_record(stopwatch, "put frame start");
-
-    if (mInputTask == NULL) {
-        mpp_stopwatch_record(stopwatch, "input port user poll");
-        /* poll input port for valid task */
-        ret = poll(MPP_PORT_INPUT, mInputTimeout);
-        if (ret < 0) {
-            mpp_log_f("poll on set timeout %d ret %d\n", mInputTimeout, ret);
-            goto RET;
-        }
-
-        /* dequeue task for setup */
-        mpp_stopwatch_record(stopwatch, "input port user dequeue");
-        ret = dequeue(MPP_PORT_INPUT, &mInputTask);
-        if (ret || NULL == mInputTask) {
-            mpp_log_f("dequeue on set ret %d task %p\n", ret, mInputTask);
-            goto RET;
-        }
-    }
-
-    mpp_assert(mInputTask);
-
-    /* setup task */
-    ret = mpp_task_meta_set_frame(mInputTask, KEY_INPUT_FRAME, frame);
+    mpp_log("ioctl cmd VCODEC_CHAN_IN_FRM_RDY in");
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_IN_FRM_RDY, 0, sizeof(frame_info), &frame_info);
     if (ret) {
-        mpp_log_f("set input frame to task ret %d\n", ret);
-        goto RET;
+        mpp_err("VCODEC_CHAN_IN_FRM_RDY  fail \n");
     }
-
-    if (mpp_frame_has_meta(frame)) {
-        MppMeta meta = mpp_frame_get_meta(frame);
-        MppPacket packet = NULL;
-
-        mpp_meta_get_packet(meta, KEY_OUTPUT_PACKET, &packet);
-        if (packet) {
-            ret = mpp_task_meta_set_packet(mInputTask, KEY_OUTPUT_PACKET, packet);
-            if (ret) {
-                mpp_log_f("set output packet to task ret %d\n", ret);
-                goto RET;
-            }
-        }
-    }
-
-    // dump input
-    mpp_ops_enc_put_frm(mDump, frame);
-
-    /* enqueue valid task to encoder */
-    mpp_stopwatch_record(stopwatch, "input port user enqueue");
-    ret = enqueue(MPP_PORT_INPUT, mInputTask);
-    if (ret) {
-        mpp_log_f("enqueue ret %d\n", ret);
-        goto RET;
-    }
-
-    mInputTask = NULL;
-    /* wait enqueued task finished */
-    mpp_stopwatch_record(stopwatch, "input port user poll");
-    ret = poll(MPP_PORT_INPUT, mInputTimeout);
-    if (ret < 0) {
-        mpp_log_f("poll on get timeout %d ret %d\n", mInputTimeout, ret);
-        goto RET;
-    }
-
-    /* get previous enqueued task back */
-    mpp_stopwatch_record(stopwatch, "input port user dequeue");
-    ret = dequeue(MPP_PORT_INPUT, &mInputTask);
-    if (ret) {
-        mpp_log_f("dequeue on get ret %d\n", ret);
-        goto RET;
-    }
-
-    mpp_assert(mInputTask);
-    if (mInputTask) {
-        MppFrame frm_out = NULL;
-
-        mpp_task_meta_get_frame(mInputTask, KEY_INPUT_FRAME, &frm_out);
-        mpp_assert(frm_out == frame);
-    }
-
-RET:
-    mpp_stopwatch_record(stopwatch, "put_frame finish");
-    mpp_frame_set_stopwatch_enable(frame, 0);
     return ret;
 }
 
+#if __SIZEOF_POINTER__ == 4
+#define REQ_DATA_PTR(ptr) ((RK_U32)ptr)
+#elif __SIZEOF_POINTER__ == 8
+#define REQ_DATA_PTR(ptr) ((RK_U64)ptr)
+#endif
+
 MPP_RET Mpp::get_packet(MppPacket *packet)
 {
+
     if (!mInitDone)
         return MPP_ERR_INIT;
-
-    MPP_RET ret = MPP_OK;
+    RK_S32 ret;
     MppTask task = NULL;
+    venc_packet enc_packet;
+    struct timeval timeout;
 
-    ret = poll(MPP_PORT_OUTPUT, mOutputTimeout);
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(mClinetFd, &read_fds);
+
+    if (*packet == NULL) {
+        mpp_err("mpp buffer need alloc");
+        return MPP_NOK;
+    }
+
+    timeout.tv_sec  = 2;
+    timeout.tv_usec = 0;
+    ret = select(mClinetFd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret < 0) {
-        // NOTE: Do not treat poll failure as error. Just clear output
-        ret = MPP_OK;
-        *packet = NULL;
-        goto RET;
+        mpp_err("select failed!\n");
+        return MPP_NOK;
+    } else if (ret == 0) {
+        mpp_err("get venc stream time out \n");
+        return MPP_NOK;
+    } else {
+        if (FD_ISSET(mClinetFd, &read_fds)) {
+            void *ptr = mpp_packet_get_pos(*packet);
+            enc_packet.buf_size = mpp_packet_get_size(*packet);
+            enc_packet.u64vir_addr = REQ_DATA_PTR(ptr);
+            ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_BUF_RDY, 0, sizeof(enc_packet), &enc_packet);
+            if (ret) {
+                mpp_err("VCODEC_CHAN_OUT_STRM_BUF_RDY fail \n");
+                return MPP_NOK;
+            }
+            mpp_packet_set_length(*packet, enc_packet.len);
+            mpp_packet_set_flag(*packet, enc_packet.flag);
+            mpp_packet_set_dts(*packet, enc_packet.u64pts);
+        }
     }
-
-    ret = dequeue(MPP_PORT_OUTPUT, &task);
-    if (ret || NULL == task) {
-        mpp_log_f("dequeue on get ret %d task %p\n", ret, task);
-        goto RET;
-    }
-
-    mpp_assert(task);
-
-    ret = mpp_task_meta_get_packet(task, KEY_OUTPUT_PACKET, packet);
-    if (ret) {
-        mpp_log_f("get output packet from task ret %d\n", ret);
-        goto RET;
-    }
-
-    mpp_assert(*packet);
-
-    mpp_dbg_pts("pts %lld\n", mpp_packet_get_pts(*packet));
-
-    // dump output
-    mpp_ops_enc_get_pkt(mDump, *packet);
-
-    ret = enqueue(MPP_PORT_OUTPUT, task);
-    if (ret)
-        mpp_log_f("enqueue on set ret %d\n", ret);
-RET:
-
-    return ret;
+    return MPP_OK;
 }
 
 MPP_RET Mpp::poll(MppPortType type, MppPollType timeout)
@@ -721,52 +540,27 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
     MPP_RET ret = MPP_NOK;
 
     mpp_ops_ctrl(mDump, cmd);
-
-    switch (cmd & CMD_MODULE_ID_MASK) {
-    case CMD_MODULE_OSAL : {
-        ret = control_osal(cmd, param);
+    RK_U32 size = 0;
+    switch (cmd) {
+    case MPP_ENC_SET_CFG :
+    case MPP_ENC_GET_CFG : {
+        size = sizeof(MppEncCfgImpl);
     } break;
-    case CMD_MODULE_MPP : {
-        mpp_assert(cmd > MPP_CMD_BASE);
-        mpp_assert(cmd < MPP_CMD_END);
-
-        ret = control_mpp(cmd, param);
+    case MPP_ENC_SET_HEADER_MODE :
+    case MPP_ENC_SET_SEI_CFG : {
+        size = sizeof(RK_U32);
     } break;
-    case CMD_MODULE_CODEC : {
-        switch (cmd & CMD_CTX_ID_MASK) {
-        case CMD_CTX_ID_DEC : {
-            mpp_assert(mType == MPP_CTX_DEC || mType == MPP_CTX_BUTT);
-            mpp_assert(cmd > MPP_DEC_CMD_BASE);
-            mpp_assert(cmd < MPP_DEC_CMD_END);
-
-            ret = control_dec(cmd, param);
-        } break;
-        case CMD_CTX_ID_ENC : {
-            mpp_assert(mType == MPP_CTX_ENC);
-            mpp_assert(cmd > MPP_ENC_CMD_BASE);
-            mpp_assert(cmd < MPP_ENC_CMD_END);
-
-            ret = control_enc(cmd, param);
-        } break;
-        case CMD_CTX_ID_ISP : {
-            mpp_assert(mType == MPP_CTX_ISP);
-            ret = control_isp(cmd, param);
-        } break;
-        default : {
-            mpp_assert(cmd > MPP_CODEC_CMD_BASE);
-            mpp_assert(cmd < MPP_CODEC_CMD_END);
-
-            ret = control_codec(cmd, param);
-        } break;
-        }
+    case MPP_ENC_SET_REF_CFG : {
+        size = sizeof(MppEncRefParam);
     } break;
     default : {
+        size = 0;
     } break;
     }
-
-    if (ret)
-        mpp_err("command %x param %p ret %d\n", cmd, param, ret);
-
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CONTROL, cmd, size, param);
+    if (ret) {
+        mpp_err("mClinetFd %d VCODEC_CHAN_CONTROL channel fail \n", mClinetFd);
+    }
     return ret;
 }
 
@@ -777,51 +571,12 @@ MPP_RET Mpp::reset()
 
     mpp_ops_reset(mDump);
 
-    if (mType == MPP_CTX_DEC) {
-        /*
-         * On mp4 case extra data of sps/pps will be put at the beginning
-         * If these packet was reset before they are send to decoder then
-         * decoder can not get these important information to continue decoding
-         * To avoid this case happen we need to save it on reset beginning
-         * then restore it on reset end.
-         */
-        mPackets->lock();
-        while (mPackets->list_size()) {
-            MppPacket pkt = NULL;
-            mPackets->del_at_head(&pkt, sizeof(pkt));
-            mPacketGetCount++;
-
-            RK_U32 flags = mpp_packet_get_flag(pkt);
-            if (flags & MPP_PACKET_FLAG_EXTRA_DATA) {
-                if (mExtraPacket) {
-                    mpp_packet_deinit(&mExtraPacket);
-                }
-                mExtraPacket = pkt;
-            } else {
-                mpp_packet_deinit(&pkt);
-            }
-        }
-        mPackets->flush();
-        mPackets->unlock();
-
-        mpp_dec_reset(mDec);
-
-        mFrames->lock();
-        mFrames->flush();
-        mFrames->unlock();
-    } else {
-        mFrames->lock();
-        mFrames->flush();
-        mFrames->unlock();
-
-        mpp_enc_reset_v2(mEnc);
-
-        mPackets->lock();
-        mPackets->flush();
-        mPackets->unlock();
+    MPP_RET ret = MPP_OK;
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_RESET, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_RESET channel fail \n");
     }
-
-    return MPP_OK;
+    return ret;
 }
 
 MPP_RET Mpp::control_mpp(MpiCmd cmd, MppParam param)
@@ -914,7 +669,7 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
 
     switch (cmd) {
     case MPP_DEC_SET_FRAME_INFO: {
-        ret = mpp_dec_control(mDec, cmd, param);
+        ;//ret = mpp_dec_control(mDec, cmd, param);
     } break;
     case MPP_DEC_SET_EXT_BUF_GROUP: {
         mFrameGroup = (MppBufferGroup)param;
@@ -948,7 +703,7 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
     case MPP_DEC_SET_INFO_CHANGE_READY: {
         mpp_dbg_info("set info change ready\n");
 
-        ret = mpp_dec_control(mDec, cmd, param);
+        //ret = mpp_dec_control(mDec, cmd, param);
         notify(MPP_DEC_NOTIFY_INFO_CHG_DONE | MPP_DEC_NOTIFY_BUFFER_MATCH);
     } break;
     case MPP_DEC_SET_PRESENT_TIME_ORDER :
@@ -961,12 +716,7 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
          * These control may be set before mpp_init
          * When this case happen record the config and wait for decoder init
          */
-        if (mDec) {
-            ret = mpp_dec_control(mDec, cmd, param);
-            return ret;
-        }
-
-        ret = mpp_dec_set_cfg_by_cmd(&mDecInitcfg, cmd, param);
+        ;
     } break;
     case MPP_DEC_GET_STREAM_COUNT: {
         AutoMutex autoLock(mPackets->mutex());
@@ -976,26 +726,26 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
     case MPP_DEC_GET_VPUMEM_USED_COUNT :
     case MPP_DEC_SET_OUTPUT_FORMAT :
     case MPP_DEC_QUERY : {
-        ret = mpp_dec_control(mDec, cmd, param);
+        ;//ret = mpp_dec_control(mDec, cmd, param);
     } break;
     case MPP_DEC_SET_CFG : {
-        if (mDec)
+        /*if (mDec)
             ret = mpp_dec_control(mDec, cmd, param);
         else if (param) {
             MppDecCfgImpl *dec_cfg = (MppDecCfgImpl *)param;
 
             ret = mpp_dec_set_cfg(&mDecInitcfg, &dec_cfg->cfg);
-        }
+        }*/
     } break;
     case MPP_DEC_GET_CFG : {
-        if (mDec)
-            ret = mpp_dec_control(mDec, cmd, param);
-        else if (param) {
-            MppDecCfgImpl *dec_cfg = (MppDecCfgImpl *)param;
+        /* if (mDec)
+             ret = mpp_dec_control(mDec, cmd, param);
+         else if (param) {
+             MppDecCfgImpl *dec_cfg = (MppDecCfgImpl *)param;
 
-            memcpy(&dec_cfg->cfg, &mDecInitcfg, sizeof(dec_cfg->cfg));
-            ret = MPP_OK;
-        }
+             memcpy(&dec_cfg->cfg, &mDecInitcfg, sizeof(dec_cfg->cfg));
+             ret = MPP_OK;
+         }*/
     } break;
     default : {
     } break;
@@ -1005,8 +755,9 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
 
 MPP_RET Mpp::control_enc(MpiCmd cmd, MppParam param)
 {
-    mpp_assert(mEnc);
-    return mpp_enc_control_v2(mEnc, cmd, param);
+    //mpp_assert(mEnc);
+    // return MPP_OK;
+    // return mpp_enc_control_v2(mEnc, cmd, param);
 }
 
 MPP_RET Mpp::control_isp(MpiCmd cmd, MppParam param)
@@ -1023,17 +774,6 @@ MPP_RET Mpp::control_isp(MpiCmd cmd, MppParam param)
 
 MPP_RET Mpp::notify(RK_U32 flag)
 {
-    switch (mType) {
-    case MPP_CTX_DEC : {
-        return mpp_dec_notify(mDec, flag);
-    } break;
-    case MPP_CTX_ENC : {
-        return mpp_enc_notify_v2(mEnc, flag);
-    } break;
-    default : {
-        mpp_err("unsupport context type %d\n", mType);
-    } break;
-    }
     return MPP_NOK;
 }
 

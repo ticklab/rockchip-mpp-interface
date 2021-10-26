@@ -435,21 +435,19 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
 
     mpp_env_get_u32("gop_mode", &gop_mode, gop_mode);
     if (gop_mode) {
-        MppEncRefCfg ref;
-
-        mpp_enc_ref_cfg_init(&ref);
-
-        if (p->gop_mode < 4)
-            mpi_enc_gen_ref_cfg(ref, gop_mode);
-        else
-            mpi_enc_gen_smart_gop_ref_cfg(ref, p->gop_len, p->vi_len);
-
-        ret = mpi->control(ctx, MPP_ENC_SET_REF_CFG, ref);
+        mpp_log("cfg gopmod %d", gop_mode);
+        MppEncRefParam param;
+        param.cfg_mode = (MppEncRefCfgMode)p->gop_mode;
+        param.gop_len = p->gop_len;
+        param.vi_len = p->vi_len;
+        param.base_N = 0;
+        param.enh_M = 0;
+        param.pre_en = 0;
+        ret = mpi->control(ctx, MPP_ENC_SET_REF_CFG, &param);
         if (ret) {
             mpp_err("mpi control enc set ref cfg failed ret %d\n", ret);
             goto RET;
         }
-        mpp_enc_ref_cfg_deinit(&ref);
     }
 
     /* setup test mode by env */
@@ -474,7 +472,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
 
     mpi = p->mpi;
     ctx = p->ctx;
-
+#if 0
     if (p->type == MPP_VIDEO_CodingAVC || p->type == MPP_VIDEO_CodingHEVC) {
         MppPacket packet = NULL;
 
@@ -503,6 +501,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
 
         mpp_packet_deinit(&packet);
     }
+#endif
     while (!p->pkt_eos) {
         MppMeta meta = NULL;
         MppFrame frame = NULL;
@@ -652,9 +651,9 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 region->qp_area_idx = 1;
 
                 p->roi_cfg.number = 2;
-                p->roi_cfg.regions = p->roi_region;
+                memcpy(p->roi_cfg.regions, p->roi_region, p->roi_cfg.number * sizeof(MppEncROIRegion));
+                ret = mpi->control(ctx, MPP_ENC_SET_ROI_CFG, &p->roi_cfg.regions);
 
-                mpp_meta_set_ptr(meta, KEY_ROI_DATA, (void*)&p->roi_cfg); // new way for roi
             }
         }
 
@@ -692,8 +691,11 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
 
                 p->pkt_eos = mpp_packet_get_eos(packet);
 
-                if (p->fp_output)
+
+                if (p->fp_output) {
                     fwrite(ptr, 1, len, p->fp_output);
+                    fflush(p->fp_output);
+                }
 
                 log_len += snprintf(log_buf + log_len, log_size - log_len,
                                     "encoded frame %-4d", p->frame_count);
@@ -800,11 +802,11 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
     mpp_log("%p mpi_enc_test encoder test start w %d h %d type %d\n",
             p->ctx, p->width, p->height, p->type);
 
-    ret = p->mpi->control(p->ctx, MPP_SET_OUTPUT_TIMEOUT, &timeout);
-    if (MPP_OK != ret) {
-        mpp_err("mpi control set output timeout %d ret %d\n", timeout, ret);
-        goto MPP_TEST_OUT;
-    }
+    /* ret = p->mpi->control(p->ctx, MPP_SET_OUTPUT_TIMEOUT, &timeout);
+     if (MPP_OK != ret) {
+         mpp_err("mpi control set output timeout %d ret %d\n", timeout, ret);
+         goto MPP_TEST_OUT;
+     }*/
 
     ret = mpp_init(p->ctx, MPP_CTX_ENC, p->type);
     if (ret) {

@@ -19,6 +19,7 @@
 
 #include "mpp_enc_cfg.h"
 #include "mpp_enc_ref.h"
+#include "mpp_rc_defs.h"
 
 /*
  * MppEncRefs has two runtime mode:

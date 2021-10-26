@@ -97,19 +97,6 @@ struct MppFrameImpl_t {
     MppFrameContentLightMetadata content_light;
 
     /*
-     * buffer information
-     * NOTE: buf_size only access internally
-     */
-    MppBuffer       buffer;
-    size_t          buf_size;
-
-    /*
-     * meta data information
-     */
-    MppMeta         meta;
-    MppStopwatch    stopwatch;
-
-    /*
      * frame buffer compression (FBC) information
      *
      * NOTE: some constraint on fbc data
@@ -123,6 +110,21 @@ struct MppFrameImpl_t {
      *    stride = aligned(width, 16)
      */
     RK_U32          fbc_offset;
+
+    size_t          buf_size;
+
+    /*
+     * buffer information
+     * NOTE: buf_size only access internally
+     */
+    MppBuffer       buffer;
+
+    /*
+     * meta data information
+     */
+    MppMeta         meta;
+    MppStopwatch    stopwatch;
+
 
     /*
      * pointer for multiple frame output at one time

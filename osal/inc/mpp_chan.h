@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Rockchip Electronics Co. LTD
+ * Copyright 2020 Rockchip Electronics Co. LTD
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-#ifndef __MPP_ENC_CFG_IMPL_H__
-#define __MPP_ENC_CFG_IMPL_H__
+#ifndef __MPP_CHAN_H__
+#define __MPP_CHAN_H__
 
-#include "mpp_trie.h"
-#include "mpp_enc_cfg.h"
+#include "rk_type.h"
 
-typedef struct MppEncCfgImpl_t {
-    MppEncCfgSet        cfg;
-    RK_S32              size;
-    MppTrie             api;
-} MppEncCfgImpl;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#endif /*__MPP_ENC_CFG_IMPL_H__*/
+RK_S32 mpp_set_chan(void *ctx, MppCtxType type);
+void mpp_free_chan(void *ctx, MppCtxType type);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /*__MPP_CHAN_H__*/

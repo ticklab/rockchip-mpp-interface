@@ -19,7 +19,6 @@
 
 #include "rk_venc_cmd.h"
 #include "rk_venc_ref.h"
-#include "rc_data.h"
 
 /*
  * MppEncCfgSet shows the relationship between different configuration

@@ -149,6 +149,7 @@ const char *mpp_get_platform_dev_name(MppCtxType type, MppCodingType coding, RK_
     if ((platform & HAVE_RKVDEC) && (type == MPP_CTX_DEC) &&
         (coding == MPP_VIDEO_CodingAVC ||
          coding == MPP_VIDEO_CodingHEVC ||
+         coding == MPP_VIDEO_CodingAVS2 ||
          coding == MPP_VIDEO_CodingVP9)) {
         dev = mpp_find_device(mpp_rkvdec_dev);
     } else if ((platform & HAVE_HEVC_DEC) && (type == MPP_CTX_DEC) &&
@@ -345,6 +346,28 @@ const char *mpp_get_vcodec_dev_name(MppCtxType type, MppCodingType coding)
         if (type == MPP_CTX_DEC) {
             if (coding == MPP_VIDEO_CodingAVC ||
                 coding == MPP_VIDEO_CodingHEVC ||
+                coding == MPP_VIDEO_CodingVP9)
+                dev = mpp_find_device(mpp_rkvdec_dev);
+            else if (coding == MPP_VIDEO_CodingMJPEG)
+                dev = mpp_find_device(mpp_jpegd_dev);
+            else
+                dev = mpp_find_device(mpp_vpu_dev);
+        } else if (type == MPP_CTX_ENC) {
+            if (coding == MPP_VIDEO_CodingAVC ||
+                coding == MPP_VIDEO_CodingHEVC)
+                dev = mpp_find_device(mpp_rkvenc_dev);
+            else if (coding == MPP_VIDEO_CodingMJPEG ||
+                     coding == MPP_VIDEO_CodingVP8)
+                dev = mpp_find_device(mpp_vpu_dev);
+            else
+                dev = NULL;
+        }
+    } break;
+    case ROCKCHIP_SOC_RK3588 : {
+        if (type == MPP_CTX_DEC) {
+            if (coding == MPP_VIDEO_CodingAVC ||
+                coding == MPP_VIDEO_CodingHEVC ||
+                coding == MPP_VIDEO_CodingAVS2 ||
                 coding == MPP_VIDEO_CodingVP9)
                 dev = mpp_find_device(mpp_rkvdec_dev);
             else if (coding == MPP_VIDEO_CodingMJPEG)

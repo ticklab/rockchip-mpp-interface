@@ -46,6 +46,7 @@
 #define HAVE_HEVC   ((RK_U32)(1 << (CODING_TO_IDX(MPP_VIDEO_CodingHEVC))))
 #define HAVE_AVSP   ((RK_U32)(1 << (CODING_TO_IDX(MPP_VIDEO_CodingAVSPLUS))))
 #define HAVE_AVS    ((RK_U32)(1 << (CODING_TO_IDX(MPP_VIDEO_CodingAVS))))
+#define HAVE_AVS2   ((RK_U32)(1 << (CODING_TO_IDX(MPP_VIDEO_CodingAVS2))))
 
 #define CAP_CODING_VDPU         (HAVE_MPEG2|HAVE_H263|HAVE_MPEG4|HAVE_AVC|HAVE_MJPEG|HAVE_VP8)
 #define CAP_CODING_JPEGD_PP     (HAVE_MJPEG)
@@ -53,6 +54,7 @@
 #define CAP_CODING_HEVC         (HAVE_HEVC)
 #define CAP_CODING_VDPU341      (HAVE_AVC|HAVE_HEVC|HAVE_VP9)
 #define CAP_CODING_VDPU341_LITE (HAVE_AVC|HAVE_HEVC)
+#define CAP_CODING_VDPU381      (HAVE_AVC|HAVE_HEVC|HAVE_VP9|HAVE_AVS2)
 
 #define CAP_CODING_VEPU1        (HAVE_AVC|HAVE_MJPEG|HAVE_VP8)
 #define CAP_CODING_VEPU_LITE    (HAVE_AVC|HAVE_MJPEG)
@@ -242,6 +244,19 @@ static const MppDecHwCap vdpu34x = {
     .reserved           = 0,
 };
 
+static const MppDecHwCap vdpu38x = {
+    .cap_coding         = CAP_CODING_VDPU381,
+    .type               = VPU_CLIENT_RKVDEC,
+    .cap_fbc            = 2,
+    .cap_4k             = 1,
+    .cap_8k             = 1,
+    .cap_colmv_buf      = 1,
+    .cap_hw_h265_rps    = 1,
+    .cap_hw_vp9_prob    = 1,
+    .cap_jpg_pp_out     = 0,
+    .cap_10bit          = 1,
+    .reserved           = 0,
+};
 static const MppDecHwCap avsd = {
     .cap_coding         = CAP_CODING_AVSD,
     .type               = VPU_CLIENT_AVSPLUS_DEC,
@@ -359,6 +374,16 @@ static const MppEncHwCap vepu540 = {
     .reserved           = 0,
 };
 
+static const MppEncHwCap vepu58x = {
+    .cap_coding         = CAP_CODING_VEPU54X,
+    .type               = VPU_CLIENT_RKVENC,
+    .cap_fbc            = 0x1 | 0x2,
+    .cap_4k             = 1,
+    .cap_8k             = 1,
+    .cap_hw_osd         = 1,
+    .cap_hw_roi         = 1,
+    .reserved           = 0,
+};
 /*
  * NOTE:
  * vpu1 = vdpu1 + vepu1
@@ -600,6 +625,19 @@ static const MppSocInfo mpp_soc_infos[] = {
         {   &vdpu34x, &rkjpegd, &vdpu2, &vdpu2_jpeg_pp, },
         {   &vepu540, &vepu2, NULL, NULL, },
     },
+    {   /*
+         * rk3588 has codec:
+         * 1 - vpu2 for jpeg/vp8 encoder and decoder
+         * 2 - RK H.264/H.265/VP9 8K decoder
+         * 3 - RK H.264/H.265 8K encoder
+         * 4 - RK jpeg decoder
+         */
+        "rk3588",
+        ROCKCHIP_SOC_RK3588,
+        HAVE_VDPU2 | HAVE_VDPU2_PP | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_RKVENC | HAVE_JPEG_DEC,
+        {   &vdpu38x, &rkjpegd, &vdpu2, &vdpu2_jpeg_pp, },
+        {   &vepu58x, &vepu2, &vepu2_jpeg, NULL, },
+    },
 };
 
 static const MppSocInfo mpp_soc_default = {
@@ -670,6 +708,7 @@ private:
     RK_U32              dec_coding_cap;
     RK_U32              enc_coding_cap;
 
+
 public:
     static MppSocService *get() {
         static MppSocService instance;
@@ -719,6 +758,7 @@ MppSocService::MppSocService()
                      dec_coding_cap, enc_coding_cap);
     mpp_dbg_platform("vcodec type: %08x\n", soc_info->vcodec_type);
     mpp_assert(soc_info->vcodec_type == vcodec_type);
+
 }
 
 const char *mpp_get_soc_name(void)
