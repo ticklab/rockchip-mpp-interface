@@ -60,6 +60,7 @@
 #define CAP_CODING_VEPU_LITE    (HAVE_AVC|HAVE_MJPEG)
 #define CAP_CODING_VEPU22       (HAVE_HEVC)
 #define CAP_CODING_VEPU54X      (HAVE_AVC|HAVE_HEVC)
+#define CAP_CODING_VEPU54C      (HAVE_AVC|HAVE_HEVC|HAVE_MJPEG)
 
 static const MppDecHwCap vdpu1 = {
     .cap_coding         = CAP_CODING_VDPU,
@@ -384,6 +385,19 @@ static const MppEncHwCap vepu58x = {
     .cap_hw_roi         = 1,
     .reserved           = 0,
 };
+
+/* vepu540c */
+static const MppEncHwCap vepu540c = {
+    .cap_coding         = CAP_CODING_VEPU54C,
+    .type               = VPU_CLIENT_RKVENC,
+    .cap_fbc            = 0x1 | 0x2,
+    .cap_4k             = 1,
+    .cap_8k             = 0,
+    .cap_hw_osd         = 1,
+    .cap_hw_roi         = 1,
+    .reserved           = 0,
+};
+
 /*
  * NOTE:
  * vpu1 = vdpu1 + vepu1
@@ -637,6 +651,16 @@ static const MppSocInfo mpp_soc_infos[] = {
         HAVE_VDPU2 | HAVE_VDPU2_PP | HAVE_VEPU2 | HAVE_RKVDEC | HAVE_RKVENC | HAVE_JPEG_DEC,
         {   &vdpu38x, &rkjpegd, &vdpu2, &vdpu2_jpeg_pp, },
         {   &vepu58x, &vepu2, &vepu2_jpeg, NULL, },
+    },
+    {   /*
+         * rv1106 has codec:
+         * 1 - RK H.264/H.265 4K mjpeg encoder
+         */
+        "rv1106",
+        ROCKCHIP_SOC_RV1106,
+        HAVE_RKVENC,
+        {   NULL, NULL, NULL, NULL, },
+        {   &vepu540c, NULL, NULL, NULL, },
     },
 };
 
