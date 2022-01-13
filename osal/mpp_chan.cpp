@@ -57,6 +57,7 @@ public:
                 idmap = &dec_map[i];
                 if (!idmap->is_valid) {
                     idmap->ctx = ctx;
+                    idmap->is_valid = 1;
                     return idmap->chan_id;
                 }
             }
@@ -65,6 +66,7 @@ public:
                 idmap = &enc_map[i];
                 if (!idmap->is_valid) {
                     idmap->ctx = ctx;
+                    idmap->is_valid = 1;
                     return idmap->chan_id;
                 }
             }
