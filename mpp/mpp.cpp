@@ -431,6 +431,7 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
         return MPP_NOK;
     } else {
         if (FD_ISSET(mClinetFd, &read_fds)) {
+            MppMeta meta = mpp_packet_get_meta(*packet);
             void *ptr = mpp_packet_get_pos(*packet);
             enc_packet.buf_size = mpp_packet_get_size(*packet);
             enc_packet.u64vir_addr = REQ_DATA_PTR(ptr);
@@ -439,8 +440,9 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
                 mpp_err("VCODEC_CHAN_OUT_STRM_BUF_RDY fail \n");
                 return MPP_NOK;
             }
+            mpp_meta_set_s32(meta, KEY_TEMPORAL_ID, enc_packet.temporal_id);
+            mpp_meta_set_s32(meta, KEY_OUTPUT_INTRA, enc_packet.flag);
             mpp_packet_set_length(*packet, enc_packet.len);
-            mpp_packet_set_flag(*packet, enc_packet.flag);
             mpp_packet_set_dts(*packet, enc_packet.u64pts);
         }
     }

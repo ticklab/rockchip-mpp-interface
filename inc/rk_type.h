@@ -138,24 +138,26 @@ typedef void* MppBufferGroup;
 typedef void* MppTask;
 typedef void* MppMeta;
 
-typedef struct venc_pack_info_t {
+struct venc_pack_info {
     RK_U32      flag;
+    RK_U32      temporal_id;
     RK_U32      packet_offset;
     RK_U32      packet_len;
-} venc_pack_info;
+};
 
-typedef struct venc_packet_t {
-    RK_U64                  u64phy_addr;
-    RK_U64                  u64vir_addr;
-    RK_U32                  len;
-    RK_U32                  buf_size;
+struct venc_packet {
+    RK_U64               u64phy_addr;
+    RK_U64               u64vir_addr;
+    RK_U32               len;
+    RK_U32               buf_size;
 
-    RK_U64                  u64pts;
-    RK_U32                  flag;
-    RK_U32                  offset;
-    RK_U32                  data_num;
-    venc_pack_info          packet[8];
-} venc_packet;
+    RK_U64               u64pts;
+    RK_U32               flag;
+    RK_U32               temporal_id;
+    RK_U32               offset;
+    RK_U32               data_num;
+    struct venc_pack_info       packet[8];
+};;
 
 
 #endif /*__RK_TYPE_H__*/
