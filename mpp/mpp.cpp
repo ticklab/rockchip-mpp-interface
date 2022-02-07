@@ -444,6 +444,7 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
             mpp_meta_set_s32(meta, KEY_OUTPUT_INTRA, enc_packet.flag);
             mpp_packet_set_length(*packet, enc_packet.len);
             mpp_packet_set_dts(*packet, enc_packet.u64pts);
+            mpp_packet_set_pts(*packet, enc_packet.u64pts);
         }
     }
     return MPP_OK;
