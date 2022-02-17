@@ -128,6 +128,7 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
 
     mInitDone = 1;
     mChanId = attr.chan_id;
+    mType = type;
     return ret;
 }
 
@@ -145,6 +146,7 @@ void Mpp::clear()
         mpp_err("VCODEC_CHAN_DESTROY channel fail \n");
     }
     mpp_dump_deinit(&mDump);
+    mpp_free_chan(this, mType);
 }
 
 MPP_RET Mpp::start()
