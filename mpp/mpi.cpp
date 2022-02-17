@@ -493,6 +493,34 @@ MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding)
     return ret;
 }
 
+MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn)
+{
+    MPP_RET ret = MPP_OK;
+    MpiImpl *p = (MpiImpl*)ctx;
+
+    mpi_dbg_func("enter ctx %p type %d coding %d chn %d\n", ctx, type, coding, chn);
+    do {
+        ret = check_mpp_ctx(p);
+        if (ret)
+            break;
+
+        if (type >= MPP_CTX_BUTT ||
+            coding >= MPP_VIDEO_CodingMax ||
+            chn < 0) {
+            mpp_err_f("invalid input type %d coding %d chn %d\n", type, coding, chn);
+            ret = MPP_ERR_UNKNOW;
+            break;
+        }
+
+        ret = p->ctx->init_ext(type, coding, chn);
+        p->type     = type;
+        p->coding   = coding;
+    } while (0);
+
+    mpi_dbg_func("leave ctx %p ret %d\n", ctx, ret);
+    return ret;
+}
+
 MPP_RET mpp_destroy(MppCtx ctx)
 {
     mpi_dbg_func("enter ctx %p\n", ctx);

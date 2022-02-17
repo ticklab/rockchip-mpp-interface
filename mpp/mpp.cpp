@@ -132,6 +132,52 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     return ret;
 }
 
+MPP_RET Mpp::init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn)
+{
+    MPP_RET ret = MPP_NOK;
+    vcodec_attr attr;
+
+
+
+    if (!mpp_check_soc_cap(type, coding)) {
+        mpp_err("unable to create %s %s for soc %s unsupported\n",
+                strof_ctx_type(type), strof_coding_type(coding),
+                mpp_get_soc_info()->compatible);
+        return MPP_NOK;
+    }
+
+    if (mpp_check_support_format(type, coding)) {
+        mpp_err("unable to create %s %s for mpp unsupported\n",
+                strof_ctx_type(type), strof_coding_type(coding));
+        return MPP_NOK;
+    }
+
+    attr.chan_id = chn;
+    attr.coding = coding;
+    attr.type = type;
+    mClinetFd = mpp_vcodec_open();
+    if (mClinetFd < 0) {
+        mpp_err("mpp_vcodec dev open fail");
+        return MPP_NOK;
+    }
+
+    mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr.chan_id);
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(attr), &attr);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+    }
+
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    if (ret) {
+        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+    }
+
+    mInitDone = 1;
+    mChanId = chn;
+    mType = type;
+    return ret;
+}
+
 Mpp::~Mpp ()
 {
     clear();

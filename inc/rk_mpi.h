@@ -242,6 +242,18 @@ MPP_RET mpp_create(MppCtx *ctx, MppApi **mpi);
 MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding);
 /**
  * @ingroup rk_mpi
+ * @brief Call after mpp_create to setup mpp type and video format.
+ *        This function will call internal context init function.
+ * @param[in] ctx The context of mpp, created by mpp_create().
+ * @param[in] type specify decoder or encoder, refer to MppCtxType.
+ * @param[in] coding specify video compression coding, refer to MppCodingType.
+ * @param[in] chn specify video channel
+ * @return 0 for success, others for failure. The return value is an
+ *         error code. For details, please refer mpp_err.h.
+ */
+MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn);
+/**
+ * @ingroup rk_mpi
  * @brief Destroy mpp context and free both context and mpi structure,
  *        it matches with mpp_init().
  * @param[in] ctx The context of mpp, created by mpp_create().

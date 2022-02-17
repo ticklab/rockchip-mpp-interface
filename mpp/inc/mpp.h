@@ -99,6 +99,7 @@ public:
     Mpp(MppCtx ctx);
     ~Mpp();
     MPP_RET init(MppCtxType type, MppCodingType coding);
+    MPP_RET init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn);
 
     MPP_RET start();
     MPP_RET stop();
