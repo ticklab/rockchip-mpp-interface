@@ -706,6 +706,71 @@ MPP_RET mpi_enc_gen_osd_data(MppEncOSDData *osd_data, MppBufferGroup group,
     return MPP_OK;
 }
 
+MPP_RET mpi_enc_gen_osd_data3(MppEncOSDData3 *osd_data, MppBuffer *osd_buf ,
+                              RK_U32 width, RK_U32 height, RK_U32 frame_cnt)
+{
+    MppEncOSDRegion3 *region = NULL;
+    RK_U32 k = 0;
+    RK_U32 num_region = 8;
+    RK_U32 buf_size = 0;
+    MppBuffer buf = *osd_buf;
+    RK_U32 x_off = 0, y_off = 0;
+    buf_size = 128 * 128 * 4;
+    if (!buf) {
+        mpp_buffer_get(NULL, &buf, MPP_ALIGN(buf_size, 16));
+        mpp_assert(buf);
+        *osd_buf = buf;
+    }
+
+    /* generate osd region info */
+    osd_data->num_region = num_region;
+
+    region = osd_data->region;
+
+    if (buf) {
+        void *ptr = mpp_buffer_get_ptr(buf);
+        mpp_assert(ptr);
+        FILE *fp = fopen("/sdcard/wind_ABGR8888", "rb");
+        if (fp) {
+            fread(ptr, 1, buf_size, fp);
+            fclose(fp);
+        }
+    }
+
+    x_off = frame_cnt * 128;
+    y_off = frame_cnt * 128;
+    if (x_off > (width - 128))
+        x_off = 0;
+    if (y_off > (height - 128))
+        y_off = 0;
+    for (k = 0; k < num_region; k++, region++) {
+        region->enable = 1;
+        region->lt_x = x_off;//0 + num_region;
+        region->lt_y = y_off;//0;
+        region->rb_x = x_off + 127;
+        region->rb_y = y_off + 127;
+        x_off += 128;
+        y_off += 128;
+        if (x_off > (width - 128))
+            x_off = 0;
+        if (y_off > (height - 128))
+            y_off = 0;
+
+        region->rbuv_swap = 1;
+        region->stride = 512;
+        region->fmt = 0;
+        region->range_trns_en = 0;
+        region->range_trns_sel = 1;
+
+        region->alpha_cfg.alpha_swap = 1;
+        region->alpha_cfg.bg_alpha = 0;
+        region->alpha_cfg.fg_alpha = 0;
+        region->alpha_cfg.fg_alpha_sel = 0;
+
+        region->osd_buf.fd = mpp_buffer_get_fd(buf);
+    }
+    return MPP_OK;
+}
 static OptionInfo mpi_enc_cmd[] = {
     {"i",               "input_file",           "input bitstream file"},
     {"o",               "output_file",          "output bitstream file, "},

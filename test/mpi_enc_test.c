@@ -49,13 +49,13 @@ typedef struct {
     MppCtx ctx;
     MppApi *mpi;
     MppEncCfg cfg;
-    MppEncPrepCfg prep_cfg;
-    MppEncRcCfg rc_cfg;
-    MppEncCodecCfg codec_cfg;
-    MppEncSliceSplit split_cfg;
-    MppEncOSDPltCfg osd_plt_cfg;
-    MppEncOSDPlt    osd_plt;
-    MppEncOSDData   osd_data;
+
+
+    MppCtx ctx_jpeg;
+    MppApi *mpi_jpeg;
+    MppEncCfg cfg_jpeg;
+
+    MppEncOSDData3   osd_data_v3;
     MppEncROIRegion roi_region[3];
     MppEncROICfg    roi_cfg;
 
@@ -63,6 +63,8 @@ typedef struct {
     MppBufferGroup buf_grp;
     MppBuffer frm_buf;
     MppBuffer pkt_buf;
+
+    MppBuffer osd_buf;
     MppEncSeiMode sei_mode;
     MppEncHeaderMode header_mode;
 
@@ -252,10 +254,16 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
 
     if (NULL == p)
         return MPP_ERR_NULL_PTR;
-
     mpi = p->mpi;
     ctx = p->ctx;
     cfg = p->cfg;
+
+
+    if (p->type == MPP_VIDEO_CodingMJPEG) {
+        mpi = p->mpi_jpeg;
+        ctx = p->ctx_jpeg;
+        cfg = p->cfg_jpeg;
+    }
 
     /* setup default parameter */
     if (p->fps_in_den == 0)
@@ -460,6 +468,31 @@ RET:
     return ret;
 }
 
+MPP_RET jpeg_comb_get_packet(MpiEncTestData *p)
+{
+    MppApi *jpeg_mpi;
+    MppCtx jpeg_ctx;
+    MppPacket packet = NULL;
+    MPP_RET ret = MPP_OK;
+
+    if (NULL == p)
+        return MPP_ERR_NULL_PTR;
+    jpeg_mpi = p->mpi_jpeg;
+    jpeg_ctx = p->ctx_jpeg;
+    {
+        mpp_packet_init_with_buffer(&packet, p->pkt_buf);
+        mpp_packet_set_length(packet, 0);
+        ret = jpeg_mpi->encode_get_packet(jpeg_ctx, &packet);
+        size_t len  = mpp_packet_get_length(packet);
+        if (packet) {
+            mpp_packet_deinit(&packet);
+        }
+        if (len)
+            mpp_log("get a jpeg stream size %d", len);
+    }
+    return ret;
+}
+
 MPP_RET test_mpp_run(MpiEncTestData *p)
 {
     MPP_RET ret = MPP_OK;
@@ -472,36 +505,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
 
     mpi = p->mpi;
     ctx = p->ctx;
-#if 0
-    if (p->type == MPP_VIDEO_CodingAVC || p->type == MPP_VIDEO_CodingHEVC) {
-        MppPacket packet = NULL;
 
-        /*
-         * Can use packet with normal malloc buffer as input not pkt_buf.
-         * Please refer to vpu_api_legacy.cpp for normal buffer case.
-         * Using pkt_buf buffer here is just for simplifing demo.
-         */
-        mpp_packet_init_with_buffer(&packet, p->pkt_buf);
-        /* NOTE: It is important to clear output packet length!! */
-        mpp_packet_set_length(packet, 0);
-
-        ret = mpi->control(ctx, MPP_ENC_GET_HDR_SYNC, packet);
-        if (ret) {
-            mpp_err("mpi control enc get extra info failed\n");
-            goto RET;
-        } else {
-            /* get and write sps/pps for H.264 */
-
-            void *ptr   = mpp_packet_get_pos(packet);
-            size_t len  = mpp_packet_get_length(packet);
-
-            if (p->fp_output)
-                fwrite(ptr, 1, len, p->fp_output);
-        }
-
-        mpp_packet_deinit(&packet);
-    }
-#endif
     while (!p->pkt_eos) {
         MppMeta meta = NULL;
         MppFrame frame = NULL;
@@ -561,6 +565,11 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
         mpp_frame_set_fmt(frame, p->fmt);
         mpp_frame_set_eos(frame, p->frm_eos);
 
+        mpp_frame_set_jpege_chan_id(frame, -1);
+        if (!(p->frame_count % 10)) {
+            mpp_frame_set_jpege_chan_id(frame, 1);
+        }
+
         if (p->fp_input && feof(p->fp_input))
             mpp_frame_set_buffer(frame, NULL);
         else if (cam_buf)
@@ -582,49 +591,17 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 if ((p->frame_count & 10) == 0) {
                     user_data.pdata = str;
                     user_data.len = strlen(str) + 1;
-                    mpp_meta_set_ptr(meta, KEY_USER_DATA, &user_data);
+                    ret = mpi->control(ctx, MPP_ENC_INSRT_USERDATA, &user_data);
                 }
-                static RK_U8 uuid_debug_info[16] = {
-                    0x57, 0x68, 0x97, 0x80, 0xe7, 0x0c, 0x4b, 0x65,
-                    0xa9, 0x06, 0xae, 0x29, 0x94, 0x11, 0xcd, 0x9a
-                };
 
-                MppEncUserDataSet data_group;
-                MppEncUserDataFull datas[2];
-                char *str1 = "this is user data 1\n";
-                char *str2 = "this is user data 2\n";
-                data_group.count = 2;
-                datas[0].len = strlen(str1) + 1;
-                datas[0].pdata = str1;
-                datas[0].uuid = uuid_debug_info;
-
-                datas[1].len = strlen(str2) + 1;
-                datas[1].pdata = str2;
-                datas[1].uuid = uuid_debug_info;
-
-                data_group.datas = datas;
-
-                mpp_meta_set_ptr(meta, KEY_USER_DATAS, &data_group);
             }
 
             if (p->osd_enable) {
-                /* gen and cfg osd plt */
-                mpi_enc_gen_osd_plt(&p->osd_plt, p->frame_count);
+                p->osd_data_v3.change = 1;
 
-                p->osd_plt_cfg.change = MPP_ENC_OSD_PLT_CFG_CHANGE_ALL;
-                p->osd_plt_cfg.type = MPP_ENC_OSD_PLT_TYPE_USERDEF;
-                p->osd_plt_cfg.plt = &p->osd_plt;
-
-                ret = mpi->control(ctx, MPP_ENC_SET_OSD_PLT_CFG, &p->osd_plt_cfg);
-                if (ret) {
-                    mpp_err("mpi control enc set osd plt failed ret %d\n", ret);
-                    goto RET;
-                }
-
-                /* gen and cfg osd plt */
-                mpi_enc_gen_osd_data(&p->osd_data, p->buf_grp, p->width,
-                                     p->height, p->frame_count);
-                mpp_meta_set_ptr(meta, KEY_OSD_DATA, (void*)&p->osd_data);
+                mpi_enc_gen_osd_data3(&p->osd_data_v3, &p->osd_buf, p->width,
+                                      p->height, (RK_U32)p->frame_count);
+                ret = mpi->control(ctx, MPP_ENC_SET_OSD_DATA_CFG, &p->osd_data_v3);
             }
 
             if (p->roi_enable) {
@@ -651,8 +628,11 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 region->qp_area_idx = 1;
 
                 p->roi_cfg.number = 2;
+                p->roi_cfg.change = 1;
+
                 memcpy(p->roi_cfg.regions, p->roi_region, p->roi_cfg.number * sizeof(MppEncROIRegion));
-                ret = mpi->control(ctx, MPP_ENC_SET_ROI_CFG, &p->roi_cfg.regions);
+
+                ret = mpi->control(ctx, MPP_ENC_SET_ROI_CFG, &p->roi_cfg);
 
             }
         }
@@ -745,6 +725,8 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
             }
         } while (!eoi);
 
+        jpeg_comb_get_packet(p);
+
         if (cam_frm_idx >= 0)
             camera_source_put_frame(p->cam_ctx, cam_frm_idx);
 
@@ -760,11 +742,44 @@ RET:
     return ret;
 }
 
+int mpi_enc_create_jpegcomb(MpiEncTestData *p)
+{
+    MPP_RET ret = MPP_OK;
+    ret = mpp_create(&p->ctx_jpeg, &p->mpi_jpeg);
+    if (ret) {
+        mpp_err("mpp_create failed ret %d\n", ret);
+        return ret;
+    }
+
+    mpp_log("%p mpi_enc_test encoder test start w %d h %d type %d\n",
+            p->ctx, p->width, p->height, p->type);
+
+    p->type = MPP_VIDEO_CodingMJPEG;
+
+    ret = mpp_init(p->ctx_jpeg, MPP_CTX_ENC, p->type);
+    if (ret) {
+        mpp_err("mpp_init failed ret %d\n", ret);
+        return ret;
+    }
+    ret = mpp_enc_cfg_init(&p->cfg_jpeg);
+    if (ret) {
+        mpp_err_f("mpp_enc_cfg_init failed ret %d\n", ret);
+        return ret;
+    }
+
+    ret = test_mpp_enc_cfg_setup(p);
+    if (ret) {
+        mpp_err_f("test mpp setup failed ret %d\n", ret);
+        return ret;
+    }
+    return ret;
+
+}
+
 int mpi_enc_test(MpiEncTestArgs *cmd)
 {
     MPP_RET ret = MPP_OK;
     MpiEncTestData *p = NULL;
-    MppPollType timeout = MPP_POLL_BLOCK;
 
     mpp_log("mpi_enc_test start\n");
 
@@ -792,7 +807,7 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
         goto MPP_TEST_OUT;
     }
 
-    // encoder demo
+    // chl0
     ret = mpp_create(&p->ctx, &p->mpi);
     if (ret) {
         mpp_err("mpp_create failed ret %d\n", ret);
@@ -826,6 +841,14 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
         goto MPP_TEST_OUT;
     }
 
+    //ch1
+    ret = mpi_enc_create_jpegcomb(p);
+    if (ret) {
+        mpp_err_f("mpi_enc_create_jpegcomb ret %d\n", ret);
+        goto MPP_TEST_OUT;
+    }
+
+
     ret = test_mpp_run(p);
     if (ret) {
         mpp_err_f("test mpp run failed ret %d\n", ret);
@@ -833,6 +856,12 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
     }
 
     ret = p->mpi->reset(p->ctx);
+    if (ret) {
+        mpp_err("mpi->reset failed\n");
+        goto MPP_TEST_OUT;
+    }
+
+    ret = p->mpi->reset(p->ctx_jpeg);
     if (ret) {
         mpp_err("mpi->reset failed\n");
         goto MPP_TEST_OUT;
@@ -856,6 +885,16 @@ MPP_TEST_OUT:
         p->cfg = NULL;
     }
 
+    if (p->ctx_jpeg) {
+        mpp_destroy(p->ctx_jpeg);
+        p->ctx_jpeg = NULL;
+    }
+
+    if (p->cfg_jpeg) {
+        mpp_enc_cfg_deinit(p->cfg);
+        p->cfg = NULL;
+    }
+
     if (p->frm_buf) {
         mpp_buffer_put(p->frm_buf);
         p->frm_buf = NULL;
@@ -866,9 +905,9 @@ MPP_TEST_OUT:
         p->pkt_buf = NULL;
     }
 
-    if (p->osd_data.buf) {
-        mpp_buffer_put(p->osd_data.buf);
-        p->osd_data.buf = NULL;
+    if (p->osd_buf) {
+        mpp_buffer_put(p->osd_buf);
+        p->osd_buf = NULL;
     }
 
     if (p->buf_grp) {
@@ -885,7 +924,6 @@ int main(int argc, char **argv)
 {
     RK_S32 ret = MPP_NOK;
     MpiEncTestArgs* cmd = mpi_enc_test_cmd_get();
-
     memset((void*)cmd, 0, sizeof(*cmd));
 
     // parse the cmd option

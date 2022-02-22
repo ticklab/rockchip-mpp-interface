@@ -75,6 +75,9 @@ MPP_RET mpi_enc_gen_ref_cfg(MppEncRefCfg ref, RK_S32 gop_mode);
 MPP_RET mpi_enc_gen_smart_gop_ref_cfg(MppEncRefCfg ref, RK_S32 gop_len, RK_S32 vi_len);
 MPP_RET mpi_enc_gen_osd_data(MppEncOSDData *osd_data, MppBufferGroup group,
                              RK_U32 width, RK_U32 height, RK_U32 frame_cnt);
+MPP_RET mpi_enc_gen_osd_data3(MppEncOSDData3 *osd_data, MppBuffer *osd_buf ,
+                              RK_U32 width, RK_U32 height, RK_U32 frame_cnt);
+
 MPP_RET mpi_enc_gen_osd_plt(MppEncOSDPlt *osd_plt, RK_U32 frame_cnt);
 
 MpiEncTestArgs *mpi_enc_test_cmd_get(void);
