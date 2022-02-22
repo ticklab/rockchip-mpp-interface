@@ -302,3 +302,5 @@ MPP_FRAME_ACCESSORS(MppFrameMasteringDisplayMetadata, mastering_display)
 MPP_FRAME_ACCESSORS(MppFrameContentLightMetadata, content_light)
 MPP_FRAME_ACCESSORS(size_t, buf_size)
 MPP_FRAME_ACCESSORS(RK_U32, errinfo)
+MPP_FRAME_ACCESSORS(RK_S32, jpege_chan_id)
+

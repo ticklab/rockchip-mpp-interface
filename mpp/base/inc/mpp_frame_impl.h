@@ -125,7 +125,7 @@ struct MppFrameImpl_t {
     MppMeta         meta;
     MppStopwatch    stopwatch;
 
-
+    RK_S32 jpege_chan_id;
     /*
      * pointer for multiple frame output at one time
      */

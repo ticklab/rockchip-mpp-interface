@@ -137,6 +137,8 @@ typedef void* MppBufferGroup;
 
 typedef void* MppTask;
 typedef void* MppMeta;
+typedef void* MpiBuf;
+
 
 struct venc_pack_info {
     RK_U32      flag;

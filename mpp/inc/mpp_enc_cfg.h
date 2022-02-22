@@ -41,10 +41,9 @@ typedef struct MppEncCfgSet_t {
     MppEncCodecCfg      codec;
 
     MppEncSliceSplit    split;
-    MppEncRefCfg        ref_cfg;
     MppEncROICfg        roi;
-    MppEncOSDPltCfg     plt_cfg;
-    MppEncOSDPlt        plt_data;
+    MppEncOSDData3      osd;
+    MppEncRefCfg        ref_cfg;
 } MppEncCfgSet;
 
 #endif /*__MPP_ENC_CFG_H__*/

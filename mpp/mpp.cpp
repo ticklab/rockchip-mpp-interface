@@ -421,7 +421,7 @@ MPP_RET Mpp::put_frame(MppFrame frame)
 
     if (!mInitDone)
         return MPP_ERR_INIT;
-    mpp_log("put_frame");
+
     if (mpp_debug & MPP_DBG_TIMING) {
         mpp_frame_set_stopwatch_enable(frame, 1);
         stopwatch = mpp_frame_get_stopwatch(frame);
@@ -436,7 +436,7 @@ MPP_RET Mpp::put_frame(MppFrame frame)
     frame_info.offset_y = mpp_frame_get_offset_y(frame);
     frame_info.fmt = mpp_frame_get_fmt(frame);
     frame_info.fd = mpp_buffer_get_fd(buf);
-
+    frame_info.jpeg_chan_id = mpp_frame_get_jpege_chan_id(frame);
     mpp_log("ioctl cmd VCODEC_CHAN_IN_FRM_RDY in");
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_IN_FRM_RDY, 0, sizeof(frame_info), &frame_info);
     if (ret) {
@@ -470,15 +470,15 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
         return MPP_NOK;
     }
 
-    timeout.tv_sec  = 2;
-    timeout.tv_usec = 0;
+    timeout.tv_sec  = 0;
+    timeout.tv_usec = 50000;
     ret = select(mClinetFd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret < 0) {
         mpp_err("select failed!\n");
         return MPP_NOK;
     } else if (ret == 0) {
-        mpp_err("get venc stream time out \n");
-        return MPP_NOK;
+        mpp_err("get venc stream time out\n");
+        return MPP_OK;
     } else {
         if (FD_ISSET(mClinetFd, &read_fds)) {
             MppMeta meta = mpp_packet_get_meta(*packet);
@@ -606,6 +606,16 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
     case MPP_ENC_SET_REF_CFG : {
         size = sizeof(MppEncRefParam);
     } break;
+    case MPP_ENC_SET_ROI_CFG: {
+        size = sizeof(MppEncROICfg);
+    } break;
+    case MPP_ENC_SET_OSD_DATA_CFG: {
+        size = sizeof(MppEncOSDData3);
+    } break;
+    case MPP_ENC_INSRT_USERDATA: {
+        size = sizeof(MppEncUserData);
+    } break;
+
     default : {
         size = 0;
     } break;

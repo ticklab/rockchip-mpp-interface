@@ -1096,6 +1096,7 @@ typedef struct MppEncROIRegion_t {
  * @brief MPP encoder's ROI configuration
  */
 typedef struct MppEncROICfg_t {
+    RK_U32              change;
     RK_U32              number;        /**< ROI rectangle number */
     MppEncROIRegion     regions[8];      /**< ROI parameters */
 } MppEncROICfg;
@@ -1209,6 +1210,11 @@ typedef struct MppEncOSDData2_t {
     MppEncOSDRegion2    region[8];
 } MppEncOSDData2;
 
+typedef struct MppOsdBuf_t {
+    RK_S32 fd;
+    MpiBuf buf;
+} MppOsdBuf;
+
 typedef struct EncOSDInvCfg_t {
     RK_U32       yg_inv_en;
     RK_U32       uvrb_inv_en;
@@ -1217,11 +1223,11 @@ typedef struct EncOSDInvCfg_t {
     RK_U32       uv_sw_inv_en;
     RK_U32       inv_size;
     RK_U32       inv_stride;
-    RK_S32       inv_buf_fd;
+    MppOsdBuf    inv_buf;
 } EncOSDInvCfg;
 
 typedef struct EncOSDAlphaCfg_t {
-    RK_U32 alpha_swap ;
+    RK_U32 alpha_swap;
     RK_U32 bg_alpha;
     RK_U32 fg_alpha;
     RK_U32 fg_alpha_sel;
@@ -1252,12 +1258,12 @@ typedef struct MppEncOSDRegion3_t {
     EncOSDInvCfg    inv_cfg;
     EncOSDAlphaCfg  alpha_cfg;
     EncOSDQpCfg     qp_cfg;
-
-    RK_S32          osd_buf_fd;
+    MppOsdBuf        osd_buf;
     RK_U8           lut[8];  //vuy vuy alpha
 } MppEncOSDRegion3;
 
 typedef struct MppEncOSDData3_t {
+    RK_U32              change;
     RK_U32              num_region;
     MppEncOSDRegion3    region[8];
 } MppEncOSDData3;

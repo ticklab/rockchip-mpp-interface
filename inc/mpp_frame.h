@@ -336,6 +336,10 @@ RK_U32  mpp_frame_get_errinfo(const MppFrame frame);
 void    mpp_frame_set_errinfo(MppFrame frame, RK_U32 errinfo);
 size_t  mpp_frame_get_buf_size(const MppFrame frame);
 void    mpp_frame_set_buf_size(MppFrame frame, size_t buf_size);
+
+RK_S32  mpp_frame_get_jpege_chan_id(const MppFrame frame);
+void    mpp_frame_set_jpege_chan_id(MppFrame frame, RK_S32 chan_id);
+
 /*
  * flow control parmeter
  */
@@ -387,8 +391,12 @@ typedef struct mpp_frame_infos_t {
     RK_U32  hor_stride_pixel;
     RK_U32  offset_x;
     RK_U32  offset_y;
-    MppFrameFormat fmt;
+    RK_U32  fmt;
     RK_U32  fd;
+    RK_U64  pts;
+    RK_S32  jpeg_chan_id;
+    void    *osd_buf;
+    RK_U32  res[10];
 } mpp_frame_infos;
 
 /*
