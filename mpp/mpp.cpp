@@ -109,6 +109,7 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     }
     attr.coding = coding;
     attr.type = type;
+    attr.online = 0;
     mClinetFd = mpp_vcodec_open();
     if (mClinetFd < 0) {
         mpp_err("mpp_vcodec dev open fail");
@@ -132,7 +133,7 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     return ret;
 }
 
-MPP_RET Mpp::init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn)
+MPP_RET Mpp::init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online)
 {
     MPP_RET ret = MPP_NOK;
     vcodec_attr attr;
@@ -155,6 +156,7 @@ MPP_RET Mpp::init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn)
     attr.chan_id = chn;
     attr.coding = coding;
     attr.type = type;
+    attr.online = online;
     mClinetFd = mpp_vcodec_open();
     if (mClinetFd < 0) {
         mpp_err("mpp_vcodec dev open fail");

@@ -251,7 +251,7 @@ MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding);
  * @return 0 for success, others for failure. The return value is an
  *         error code. For details, please refer mpp_err.h.
  */
-MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn);
+MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online);
 /**
  * @ingroup rk_mpi
  * @brief Destroy mpp context and free both context and mpi structure,

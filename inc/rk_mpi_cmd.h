@@ -196,6 +196,7 @@ typedef struct vcodec_attr_t {
     MppCtxType      type;
     MppCodingType   coding;
     RK_S32          chan_id;
+    RK_S32          online;
 } vcodec_attr;
 
 #include "rk_vdec_cmd.h"

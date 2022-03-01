@@ -493,7 +493,7 @@ MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding)
     return ret;
 }
 
-MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn)
+MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online)
 {
     MPP_RET ret = MPP_OK;
     MpiImpl *p = (MpiImpl*)ctx;
@@ -512,7 +512,7 @@ MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 c
             break;
         }
 
-        ret = p->ctx->init_ext(type, coding, chn);
+        ret = p->ctx->init_ext(type, coding, chn, online);
         p->type     = type;
         p->coding   = coding;
     } while (0);
