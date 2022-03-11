@@ -148,8 +148,8 @@ struct venc_pack_info {
 };
 
 struct venc_packet {
-    RK_U64               u64phy_addr;
-    RK_U64               u64vir_addr;
+    RK_U64               u64priv_data;
+    RK_U64               u64packet_addr;
     RK_U32               len;
     RK_U32               buf_size;
 
@@ -159,7 +159,7 @@ struct venc_packet {
     RK_U32               offset;
     RK_U32               data_num;
     struct venc_pack_info       packet[8];
-};;
+};
 
 
 #endif /*__RK_TYPE_H__*/

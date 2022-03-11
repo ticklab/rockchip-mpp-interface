@@ -255,6 +255,31 @@ static MPP_RET mpi_encode_get_packet(MppCtx ctx, MppPacket *packet)
     return ret;
 }
 
+static MPP_RET mpi_encode_release_packet(MppCtx ctx, MppPacket *packet)
+{
+    MPP_RET ret = MPP_NOK;
+    MpiImpl *p = (MpiImpl *)ctx;
+
+    mpi_dbg_func("enter ctx %p packet %p\n", ctx, packet);
+    do {
+        ret = check_mpp_ctx(p);
+        if (ret)
+            break;
+
+        if (NULL == packet) {
+            mpp_err_f("found NULL input packet\n");
+            ret = MPP_ERR_NULL_PTR;
+            break;
+        }
+
+        ret = p->ctx->release_packet(packet);
+    } while (0);
+
+    mpi_dbg_func("leave ctx %p ret %d\n", ctx, ret);
+    return ret;
+}
+
+
 static MPP_RET mpi_isp(MppCtx ctx, MppFrame dst, MppFrame src)
 {
     MPP_RET ret = MPP_OK;
@@ -417,6 +442,7 @@ static MppApi mpp_api = {
     mpi_enqueue,
     mpi_reset,
     mpi_control,
+    mpi_encode_release_packet,
     {0},
 };
 
@@ -491,28 +517,28 @@ MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding)
     return ret;
 }
 
-MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online)
+MPP_RET mpp_init_ext(MppCtx ctx, vcodec_attr *attr)
 {
     MPP_RET ret = MPP_OK;
     MpiImpl *p = (MpiImpl*)ctx;
 
-    mpi_dbg_func("enter ctx %p type %d coding %d chn %d\n", ctx, type, coding, chn);
+    mpi_dbg_func("enter ctx %p type %d coding %d chn %d\n", ctx, attr->type, attr->coding, attr->chan_id);
     do {
         ret = check_mpp_ctx(p);
         if (ret)
             break;
 
-        if (type >= MPP_CTX_BUTT ||
-            coding >= MPP_VIDEO_CodingMax ||
-            chn < 0) {
-            mpp_err_f("invalid input type %d coding %d chn %d\n", type, coding, chn);
+        if (attr->type >= MPP_CTX_BUTT ||
+            attr->coding >= MPP_VIDEO_CodingMax ||
+            attr->chan_id < 0) {
+            mpp_err_f("invalid input type %d coding %d chn %d\n", attr->type, attr->coding, attr->chan_id);
             ret = MPP_ERR_UNKNOW;
             break;
         }
 
-        ret = p->ctx->init_ext(type, coding, chn, online);
-        p->type     = type;
-        p->coding   = coding;
+        ret = p->ctx->init_ext(attr);
+        p->type     = attr->type;
+        p->coding   = attr->coding;
     } while (0);
 
     mpi_dbg_func("leave ctx %p ret %d\n", ctx, ret);

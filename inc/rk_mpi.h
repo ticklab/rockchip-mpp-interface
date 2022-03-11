@@ -206,6 +206,9 @@ typedef struct MppApi_t {
      */
     MPP_RET (*control)(MppCtx ctx, MpiCmd cmd, MppParam param);
 
+
+    MPP_RET (*encode_release_packet)(MppCtx ctx, MppPacket *packet);
+
     /**
      * @brief The reserved segment, may be used in the future
      */
@@ -251,7 +254,7 @@ MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding);
  * @return 0 for success, others for failure. The return value is an
  *         error code. For details, please refer mpp_err.h.
  */
-MPP_RET mpp_init_ext(MppCtx ctx, MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online);
+MPP_RET mpp_init_ext(MppCtx ctx, vcodec_attr *attr);
 /**
  * @ingroup rk_mpi
  * @brief Destroy mpp context and free both context and mpi structure,

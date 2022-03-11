@@ -197,6 +197,11 @@ typedef struct vcodec_attr_t {
     MppCodingType   coding;
     RK_S32          chan_id;
     RK_S32          online;
+    RK_U32          buf_size;
+    RK_U32      max_strm_cnt;
+    RK_U32      shared_buf_en;
+    RK_U32      res[8];
+
 } vcodec_attr;
 
 #include "rk_vdec_cmd.h"

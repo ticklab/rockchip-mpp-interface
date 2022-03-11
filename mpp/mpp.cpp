@@ -18,6 +18,10 @@
 
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
 
 #include "rk_mpi.h"
 
@@ -86,9 +90,7 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
 {
     MPP_RET ret = MPP_NOK;
     vcodec_attr attr;
-
-
-
+    memset(&attr, 0, sizeof(vcodec_attr));
     if (!mpp_check_soc_cap(type, coding)) {
         mpp_err("unable to create %s %s for soc %s unsupported\n",
                 strof_ctx_type(type), strof_coding_type(coding),
@@ -133,38 +135,32 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     return ret;
 }
 
-MPP_RET Mpp::init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online)
+MPP_RET Mpp::init_ext(vcodec_attr *attr)
 {
     MPP_RET ret = MPP_NOK;
-    vcodec_attr attr;
 
 
 
-    if (!mpp_check_soc_cap(type, coding)) {
+    if (!mpp_check_soc_cap(attr->type, attr->coding)) {
         mpp_err("unable to create %s %s for soc %s unsupported\n",
-                strof_ctx_type(type), strof_coding_type(coding),
+                strof_ctx_type(attr->type), strof_coding_type(attr->coding),
                 mpp_get_soc_info()->compatible);
         return MPP_NOK;
     }
 
-    if (mpp_check_support_format(type, coding)) {
+    if (mpp_check_support_format(attr->type, attr->coding)) {
         mpp_err("unable to create %s %s for mpp unsupported\n",
-                strof_ctx_type(type), strof_coding_type(coding));
+                strof_ctx_type(attr->type), strof_coding_type(attr->coding));
         return MPP_NOK;
     }
 
-    attr.chan_id = chn;
-    attr.coding = coding;
-    attr.type = type;
-    attr.online = online;
     mClinetFd = mpp_vcodec_open();
     if (mClinetFd < 0) {
         mpp_err("mpp_vcodec dev open fail");
         return MPP_NOK;
     }
-
-    mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr.chan_id);
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(attr), &attr);
+    mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr->chan_id);
+    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(*attr), attr);
     if (ret) {
         mpp_err("VCODEC_CHAN_CREATE channel fail \n");
     }
@@ -175,8 +171,8 @@ MPP_RET Mpp::init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 
     }
 
     mInitDone = 1;
-    mChanId = chn;
-    mType = type;
+    mChanId = attr->chan_id;
+    mType = attr->type;
     return ret;
 }
 
@@ -194,6 +190,10 @@ void Mpp::clear()
         mpp_err("VCODEC_CHAN_DESTROY channel fail \n");
     }
     mpp_dump_deinit(&mDump);
+    if (mClinetFd >= 0)
+        mpp_vcodec_close(mClinetFd);
+
+
     mpp_free_chan(this, mType);
 }
 
@@ -417,15 +417,10 @@ MPP_RET Mpp::put_frame(MppFrame frame)
     mpp_frame_infos frame_info;
     MppBuffer buf = NULL;
     MPP_RET ret = MPP_OK;
-    MppStopwatch stopwatch = NULL;
 
     if (!mInitDone)
         return MPP_ERR_INIT;
 
-    if (mpp_debug & MPP_DBG_TIMING) {
-        mpp_frame_set_stopwatch_enable(frame, 1);
-        stopwatch = mpp_frame_get_stopwatch(frame);
-    }
     buf = mpp_frame_get_buffer(frame);
     frame_info.width = mpp_frame_get_width(frame);
     frame_info.height = mpp_frame_get_height(frame);
@@ -437,7 +432,6 @@ MPP_RET Mpp::put_frame(MppFrame frame)
     frame_info.fmt = mpp_frame_get_fmt(frame);
     frame_info.fd = mpp_buffer_get_fd(buf);
     frame_info.jpeg_chan_id = mpp_frame_get_jpege_chan_id(frame);
-    mpp_log("ioctl cmd VCODEC_CHAN_IN_FRM_RDY in");
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_IN_FRM_RDY, 0, sizeof(frame_info), &frame_info);
     if (ret) {
         mpp_err("VCODEC_CHAN_IN_FRM_RDY  fail \n");
@@ -453,22 +447,20 @@ MPP_RET Mpp::put_frame(MppFrame frame)
 
 MPP_RET Mpp::get_packet(MppPacket *packet)
 {
-
     if (!mInitDone)
         return MPP_ERR_INIT;
     RK_S32 ret;
-    MppTask task = NULL;
-    venc_packet enc_packet;
+    venc_packet *enc_packet  = (venc_packet *)*packet;
+
+    if (*packet == NULL) {
+        return MPP_NOK;
+    }
+
     struct timeval timeout;
 
     fd_set read_fds;
     FD_ZERO(&read_fds);
     FD_SET(mClinetFd, &read_fds);
-
-    if (*packet == NULL) {
-        mpp_err("mpp buffer need alloc");
-        return MPP_NOK;
-    }
 
     timeout.tv_sec  = 0;
     timeout.tv_usec = 50000;
@@ -478,27 +470,73 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
         return MPP_NOK;
     } else if (ret == 0) {
         mpp_err("get venc stream time out\n");
-        return MPP_OK;
+        return MPP_NOK;
     } else {
         if (FD_ISSET(mClinetFd, &read_fds)) {
-            MppMeta meta = mpp_packet_get_meta(*packet);
-            void *ptr = mpp_packet_get_pos(*packet);
-            enc_packet.buf_size = mpp_packet_get_size(*packet);
-            enc_packet.u64vir_addr = REQ_DATA_PTR(ptr);
-            ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_BUF_RDY, 0, sizeof(enc_packet), &enc_packet);
+            //MppMeta meta = mpp_packet_get_meta(*packet);
+            //void *dst_ptr = mpp_packet_get_pos(*packet);
+            //enc_packet.buf_size = mpp_packet_get_size(*packet);
+            //enc_packet.u64vir_addr = REQ_DATA_PTR(ptr);
+            ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_BUF_RDY, 0, sizeof(*enc_packet), enc_packet);
             if (ret) {
                 mpp_err("VCODEC_CHAN_OUT_STRM_BUF_RDY fail \n");
                 return MPP_NOK;
             }
+#if 0
+            void *src_ptr = NULL;
+            struct valloc_mb mb;
+            memset(&mb, 0, sizeof(mb));
+            mb.mpi_buf_id = enc_packet.u64priv_data;
+            ioctl(mMbFd, VALLOC_IOCTL_MB_GET_FD, &mb);
+            mpp_log("mb->mpi_buf_id %d", mb.mpi_buf_id);
+            mpp_log("buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
+            src_ptr = mmap(NULL, enc_packet.buf_size, PROT_READ, MAP_SHARED, mb.dma_buf_fd, 0);
+
+            mpp_log("src_ptr %p enc_packet.offset %d", src_ptr, enc_packet.offset);
+            if (src_ptr) {
+                mpp_log("buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
+                memcpy(dst_ptr, src_ptr + enc_packet.offset, enc_packet.len);
+            }
+
+            ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_END, 0, sizeof(enc_packet), &enc_packet);
             mpp_meta_set_s32(meta, KEY_TEMPORAL_ID, enc_packet.temporal_id);
             mpp_meta_set_s32(meta, KEY_OUTPUT_INTRA, enc_packet.flag);
             mpp_packet_set_length(*packet, enc_packet.len);
             mpp_packet_set_dts(*packet, enc_packet.u64pts);
             mpp_packet_set_pts(*packet, enc_packet.u64pts);
+#endif
         }
     }
     return MPP_OK;
 }
+
+MPP_RET Mpp::release_packet(MppPacket *packet)
+{
+
+    if (!mInitDone)
+        return MPP_ERR_INIT;
+
+    RK_S32 ret;
+    venc_packet *enc_packet  = (venc_packet *) *packet;
+    struct timeval timeout;
+    if (*packet == NULL) {
+        return MPP_NOK;
+    }
+
+    fd_set read_fds;
+    FD_ZERO(&read_fds);
+    FD_SET(mClinetFd, &read_fds);
+
+    if (packet == NULL) {
+        return MPP_NOK;
+    }
+
+    if (mClinetFd >= 0) {
+        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_END, 0, sizeof(enc_packet), &enc_packet);
+    }
+    return MPP_OK;
+}
+
 
 MPP_RET Mpp::poll(MppPortType type, MppPollType timeout)
 {
@@ -819,7 +857,7 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
 MPP_RET Mpp::control_enc(MpiCmd cmd, MppParam param)
 {
     //mpp_assert(mEnc);
-    // return MPP_OK;
+    return MPP_OK;
     // return mpp_enc_control_v2(mEnc, cmd, param);
 }
 

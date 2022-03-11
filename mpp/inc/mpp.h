@@ -99,7 +99,7 @@ public:
     Mpp(MppCtx ctx);
     ~Mpp();
     MPP_RET init(MppCtxType type, MppCodingType coding);
-    MPP_RET init_ext(MppCtxType type, MppCodingType coding, RK_S32 chn, RK_S32 online);
+    MPP_RET init_ext(vcodec_attr *attr);
 
     MPP_RET start();
     MPP_RET stop();
@@ -112,6 +112,7 @@ public:
 
     MPP_RET put_frame(MppFrame frame);
     MPP_RET get_packet(MppPacket *packet);
+    MPP_RET release_packet(MppPacket *packet);
 
     MPP_RET poll(MppPortType type, MppPollType timeout);
     MPP_RET dequeue(MppPortType type, MppTask *task);
