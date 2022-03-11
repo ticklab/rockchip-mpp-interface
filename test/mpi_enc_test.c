@@ -21,6 +21,13 @@
 #define MODULE_TAG "mpi_enc_test"
 
 #include <string.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+
 #include "rk_mpi.h"
 
 #include "mpp_env.h"
@@ -32,6 +39,10 @@
 #include "utils.h"
 #include "mpi_enc_utils.h"
 #include "camera_source.h"
+#include "rk_mpi_mb_cmd.h"
+
+
+
 
 typedef struct {
     // global flow control flag
@@ -39,6 +50,7 @@ typedef struct {
     RK_U32 pkt_eos;
     RK_U32 frm_pkt_cnt;
     RK_S32 frame_count;
+    RK_S32 jpeg_cnt;
     RK_U64 stream_size;
 
     // src and dst
@@ -108,6 +120,7 @@ typedef struct {
     RK_S32 gop_mode;
     RK_S32 gop_len;
     RK_S32 vi_len;
+    RK_S32 mem_fd;
 } MpiEncTestData;
 
 MPP_RET test_ctx_init(MpiEncTestData **data, MpiEncTestArgs *cmd)
@@ -155,6 +168,14 @@ MPP_RET test_ctx_init(MpiEncTestData **data, MpiEncTestArgs *cmd)
     p->fps_out_flex = cmd->fps_out_flex;
     p->fps_out_den  = cmd->fps_out_den;
     p->fps_out_num  = cmd->fps_out_num;
+
+
+    p->mem_fd = open("/dev/mpi/valloc", O_RDWR | O_CLOEXEC);
+
+    if (p->mem_fd < 0) {
+        mpp_err("mpi mb valloc fail");
+        return MPP_NOK;
+    }
 
     if (cmd->file_input) {
         if (!strncmp(cmd->file_input, "/dev/video", 10)) {
@@ -226,6 +247,10 @@ MPP_RET test_ctx_deinit(MpiEncTestData **data)
         return MPP_ERR_NULL_PTR;
     }
     p = *data;
+
+    if (p->mem_fd) {
+        close(p->mem_fd);
+    }
     if (p) {
         if (p->cam_ctx) {
             camera_source_deinit(p->cam_ctx);
@@ -468,27 +493,57 @@ RET:
     return ret;
 }
 
+void save_to_file(char *name, void *ptr, size_t size)
+{
+    FILE *fp = fopen(name, "w+b");
+    if (fp) {
+        fwrite(ptr, 1, size, fp);
+        fclose(fp);
+    } else
+        mpp_err("create file %s failed\n", name);
+}
+
+
 MPP_RET jpeg_comb_get_packet(MpiEncTestData *p)
 {
     MppApi *jpeg_mpi;
     MppCtx jpeg_ctx;
     MppPacket packet = NULL;
     MPP_RET ret = MPP_OK;
+    struct venc_packet enc_packet;
+    memset(&enc_packet, 0, sizeof(enc_packet));
+    RK_S32 pid = getpid();
+    char name[128];
+    size_t name_len = sizeof(name) - 1;
+
+    packet = &enc_packet;
 
     if (NULL == p)
         return MPP_ERR_NULL_PTR;
     jpeg_mpi = p->mpi_jpeg;
     jpeg_ctx = p->ctx_jpeg;
     {
-        mpp_packet_init_with_buffer(&packet, p->pkt_buf);
-        mpp_packet_set_length(packet, 0);
+
         ret = jpeg_mpi->encode_get_packet(jpeg_ctx, &packet);
-        size_t len  = mpp_packet_get_length(packet);
-        if (packet) {
-            mpp_packet_deinit(&packet);
-        }
-        if (len)
+        size_t len  = enc_packet.len;
+        if (len) {
+            void *src_ptr = NULL;
+            struct valloc_mb mb;
+            memset(&mb, 0, sizeof(mb));
+            mb.mpi_buf_id = enc_packet.u64priv_data;
+            ioctl(p->mem_fd, VALLOC_IOCTL_MB_GET_FD, &mb);
+            mpp_log("jpeg mb->mpi_buf_id %d", mb.mpi_buf_id);
+            mpp_log("jpeg buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
+            src_ptr = mmap(NULL, enc_packet.buf_size, PROT_READ, MAP_SHARED, mb.dma_buf_fd, 0);
+            snprintf(name, name_len, "/sdcard/jpegen_out_%d_frm%d.jpeg", pid, p->jpeg_cnt++);
             mpp_log("get a jpeg stream size %d", len);
+            save_to_file(name, src_ptr, len);
+
+            if (src_ptr)
+                munmap(src_ptr, enc_packet.buf_size);
+            close(mb.dma_buf_fd);
+        }
+        jpeg_mpi->encode_release_packet(jpeg_ctx, &packet);
     }
     return ret;
 }
@@ -507,13 +562,16 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
     ctx = p->ctx;
 
     while (!p->pkt_eos) {
-        MppMeta meta = NULL;
         MppFrame frame = NULL;
         MppPacket packet = NULL;
+        struct venc_packet enc_packet;
+        memset(&enc_packet, 0, sizeof(enc_packet));
         void *buf = mpp_buffer_get_ptr(p->frm_buf);
         RK_S32 cam_frm_idx = -1;
         MppBuffer cam_buf = NULL;
         RK_U32 eoi = 1;
+
+        packet = &enc_packet;
 
         if (p->fp_input) {
             ret = read_image(buf, p->fp_input, p->width, p->height,
@@ -576,12 +634,6 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
             mpp_frame_set_buffer(frame, cam_buf);
         else
             mpp_frame_set_buffer(frame, p->frm_buf);
-
-        meta = mpp_frame_get_meta(frame);
-        mpp_packet_init_with_buffer(&packet, p->pkt_buf);
-        /* NOTE: It is important to clear output packet length!! */
-        mpp_packet_set_length(packet, 0);
-        mpp_meta_set_packet(meta, KEY_OUTPUT_PACKET, packet);
 
         if (p->osd_enable || p->user_data_enable || p->roi_enable) {
             if (p->user_data_enable) {
@@ -659,69 +711,38 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 goto RET;
             }
 
-            mpp_assert(packet);
-
-            if (packet) {
+            if (enc_packet.len) {
                 // write packet to file here
-                void *ptr   = mpp_packet_get_pos(packet);
-                size_t len  = mpp_packet_get_length(packet);
-                char log_buf[256];
-                RK_S32 log_size = sizeof(log_buf) - 1;
-                RK_S32 log_len = 0;
+                void *src_ptr = NULL;
+                size_t len  = enc_packet.len;
+                struct valloc_mb mb;
+                memset(&mb, 0, sizeof(mb));
+                mb.mpi_buf_id = enc_packet.u64priv_data;
+                ioctl(p->mem_fd, VALLOC_IOCTL_MB_GET_FD, &mb);
+                mpp_log("mb->mpi_buf_id %d", mb.mpi_buf_id);
+                mpp_log("buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
+                src_ptr = mmap(NULL, enc_packet.buf_size, PROT_READ, MAP_SHARED, mb.dma_buf_fd, 0);
+                mpp_log("src_ptr %p enc_packet.offset %d", src_ptr, enc_packet.offset);
+                p->pkt_eos = 0;
 
-                p->pkt_eos = mpp_packet_get_eos(packet);
-
-
-                if (p->fp_output) {
-                    fwrite(ptr, 1, len, p->fp_output);
+                if (p->fp_output && src_ptr) {
+                    fwrite(src_ptr + enc_packet.offset, 1, len, p->fp_output);
                     fflush(p->fp_output);
                 }
 
-                log_len += snprintf(log_buf + log_len, log_size - log_len,
-                                    "encoded frame %-4d", p->frame_count);
-
-                /* for low delay partition encoding */
-                if (mpp_packet_is_partition(packet)) {
-                    eoi = mpp_packet_is_eoi(packet);
-
-                    log_len += snprintf(log_buf + log_len, log_size - log_len,
-                                        " pkt %d", p->frm_pkt_cnt);
-                    p->frm_pkt_cnt = (eoi) ? (0) : (p->frm_pkt_cnt + 1);
-                }
-
-                log_len += snprintf(log_buf + log_len, log_size - log_len,
-                                    " size %-7zu", len);
-
-                if (mpp_packet_has_meta(packet)) {
-                    meta = mpp_packet_get_meta(packet);
-                    RK_S32 temporal_id = 0;
-                    RK_S32 lt_idx = -1;
-                    RK_S32 avg_qp = -1;
-
-                    if (MPP_OK == mpp_meta_get_s32(meta, KEY_TEMPORAL_ID, &temporal_id))
-                        log_len += snprintf(log_buf + log_len, log_size - log_len,
-                                            " tid %d", temporal_id);
-
-                    if (MPP_OK == mpp_meta_get_s32(meta, KEY_LONG_REF_IDX, &lt_idx))
-                        log_len += snprintf(log_buf + log_len, log_size - log_len,
-                                            " lt %d", lt_idx);
-
-                    if (MPP_OK == mpp_meta_get_s32(meta, KEY_ENC_AVERAGE_QP, &avg_qp))
-                        log_len += snprintf(log_buf + log_len, log_size - log_len,
-                                            " qp %d", avg_qp);
-                }
-
-                mpp_log("%p %s\n", ctx, log_buf);
-
-                mpp_packet_deinit(&packet);
-
+                if (src_ptr)
+                    munmap(src_ptr, enc_packet.buf_size);
+                close(mb.dma_buf_fd);
                 p->stream_size += len;
-                p->frame_count += eoi;
+                p->frame_count ++;
+                eoi = 1;
 
                 if (p->pkt_eos) {
                     mpp_log("%p found last packet\n", ctx);
                     mpp_assert(p->frm_eos);
                 }
+
+                ret = mpi->encode_release_packet(ctx, &packet);
             }
         } while (!eoi);
 
