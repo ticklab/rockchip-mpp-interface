@@ -17,261 +17,393 @@
 #define MODULE_TAG "mpp_buffer"
 
 #include <string.h>
+#include <errno.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
 
 #include "mpp_log.h"
 #include "mpp_mem.h"
-#include "mpp_buffer_impl.h"
+#include "mpp_buffer.h"
+#include "rk_mpi_mb_cmd.h"
 
-MPP_RET mpp_buffer_import_with_tag(MppBufferGroup group, MppBufferInfo *info, MppBuffer *buffer,
-                                   const char *tag, const char *caller)
+struct MppBufferImpl {
+    MppBufferInfo info;
+    size_t offset;
+    size_t buf_size;
+    RK_S32 ref_count;
+    RK_U32 buf_import;
+    struct valloc_mb vmb;
+};
+
+class MpibufService
 {
-    if (NULL == info) {
-        mpp_err("mpp_buffer_commit invalid input: info NULL from %s\n", caller);
-        return MPP_ERR_NULL_PTR;
-    }
-
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
-
-    if (p) {
-        // if group is specified we need to check the parameter
-        if ((p->type & MPP_BUFFER_TYPE_MASK) != info->type ||
-            (p->type & MPP_BUFFER_TYPE_MASK) >= MPP_BUFFER_TYPE_BUTT ||
-            p->mode != MPP_BUFFER_EXTERNAL) {
-            mpp_err("mpp_buffer_commit invalid type found group %d info %d group mode %d from %s\n",
-                    p->type, info->type, p->mode, caller);
-            return MPP_ERR_UNKNOW;
+private:
+    // avoid any unwanted function
+    MpibufService() {
+        mb_fd = -1;
+        mb_fd = open("/dev/mpi/valloc", O_RDWR | O_CLOEXEC);
+        if (mb_fd < 0) {
+            mpp_err("open mb malloc fail");
         }
-    } else {
-        // otherwise use default external group to manage them
-        p = mpp_buffer_get_misc_group(MPP_BUFFER_EXTERNAL, info->type);
+    };
+
+    ~MpibufService() {
+        if (mb_fd >= 0) {
+            close(mb_fd);
+        }
+    };
+    MpibufService(const MpibufService &);
+    MpibufService &operator=(const MpibufService &);
+
+    RK_S32 mb_fd;
+
+public:
+    static MpibufService *get() {
+        static MpibufService instance;
+        return &instance;
     }
 
-    mpp_assert(p);
+    MPP_RET mb_buf_malloc(struct valloc_mb **mb) {
+        struct valloc_mb *vmb = *mb;
+        RK_S32 ret = 0;
+        if (mb_fd < 0) {
+            return MPP_NOK;
+        }
+        ret = ioctl(mb_fd, VALLOC_IOCTL_MB_CREATE, vmb);
+        if (ret) {
+            return MPP_NOK;
+        }
+
+        ret = ioctl(mb_fd, VALLOC_IOCTL_MB_GET_FD, vmb);
+        mpp_log("mpi_buf_id = %d, dma_buf_fd = %d", vmb->mpi_buf_id, vmb->dma_buf_fd);
+
+
+        if (ret) {
+            return MPP_NOK;
+        }
+        return MPP_OK;
+    };
+
+    MPP_RET mb_buf_free(struct valloc_mb *mb) {
+        RK_S32 ret = 0;
+        if (mb_fd < 0) {
+            return MPP_NOK;
+        }
+        ret = ioctl(mb_fd, VALLOC_IOCTL_MB_DELETE, mb);
+        if (ret) {
+            return MPP_NOK;
+        }
+        return MPP_OK;
+
+    };
+};
+
+MPP_RET mpp_mpi_buf_alloc(struct valloc_mb **mb)
+{
+    return MpibufService::get()->mb_buf_malloc(mb);
+}
+
+MPP_RET mpp_mpi_buf_free(struct valloc_mb *mb)
+{
+    return MpibufService::get()->mb_buf_free(mb);
+}
+
+MPP_RET mpp_buffer_import_with_tag(MppBufferGroup group, MppBufferInfo * info,
+                                   MppBuffer * buffer, const char *tag,
+                                   const char *caller)
+{
+    (void)group;
+    (void)tag;
+    (void)caller;
 
     MPP_RET ret = MPP_OK;
-    if (buffer) {
-        MppBufferImpl *buf = NULL;
-        ret = mpp_buffer_create(tag, caller, p, info, &buf);
-        *buffer = buf;
-    } else {
-        ret = mpp_buffer_create(tag, caller, p, info, NULL);
+    struct MppBufferImpl *buf_impl = NULL;
+    struct valloc_mb *vmb = NULL;
+    buf_impl = mpp_calloc(struct MppBufferImpl, 1);
+    if (NULL == buf_impl) {
+        mpp_err("mpp_buffer_import : group %p buffer %p fd %d from %s\n",
+                group, buffer, (RK_U32)info->fd, caller);
+        return MPP_ERR_UNKNOW;
     }
+
+    buf_impl->buf_size = info->size;
+    buf_impl->vmb.size = info->size;
+
+    vmb = &buf_impl->vmb;
+
+    vmb->dma_buf_fd = info->fd;
+    buf_impl->buf_import = 1;
+    buf_impl->ref_count++;
+    *buffer = buf_impl;
     return ret;
 }
 
-MPP_RET mpp_buffer_get_with_tag(MppBufferGroup group, MppBuffer *buffer, size_t size,
-                                const char *tag, const char *caller)
+
+MPP_RET mpp_buffer_get_with_tag(MppBufferGroup group, MppBuffer * buffer,
+                                size_t size, const char *tag,
+                                const char *caller)
 {
-    if (NULL == buffer || 0 == size) {
-        mpp_err("mpp_buffer_get invalid input: group %p buffer %p size %u from %s\n",
-                group, buffer, size, caller);
+    MPP_RET ret = MPP_OK;
+    struct MppBufferImpl *buf_impl = NULL;
+    struct valloc_mb *vmb = NULL;
+    (void)tag;
+    buf_impl = mpp_calloc(struct MppBufferImpl, 1);
+    if (NULL == buf_impl) {
+        mpp_err
+        ("buf impl malloc fail : group %p buffer %p size %u from %s\n",
+         group, buffer, (RK_U32) size, caller);
         return MPP_ERR_UNKNOW;
     }
-
-    if (NULL == group) {
-        // deprecated, only for libvpu support
-        group = mpp_buffer_get_misc_group(MPP_BUFFER_INTERNAL, MPP_BUFFER_TYPE_ION);
+    buf_impl->buf_size = size;
+    buf_impl->vmb.size = size;
+    vmb = &buf_impl->vmb;
+    vmb->dma_buf_fd = -1;
+    vmb->struct_size = sizeof(struct valloc_mb);
+    ret = mpp_mpi_buf_alloc(&vmb);
+    if (ret) {
+        return MPP_NOK;
     }
-
-    mpp_assert(group);
-
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
-    // try unused buffer first
-    MppBufferImpl *buf = mpp_buffer_get_unused(p, size);
-    if (NULL == buf && MPP_BUFFER_INTERNAL == p->mode) {
-        MppBufferInfo info = {
-            p->type,
-            size,
-            NULL,
-            NULL,
-            -1,
-            -1,
-        };
-        // if failed try init a new buffer
-        mpp_buffer_create(tag, caller, p, &info, &buf);
-    }
-    *buffer = buf;
-    return (buf) ? (MPP_OK) : (MPP_NOK);
+    buf_impl->ref_count++;
+    *buffer = buf_impl;
+    return (buf_impl) ? (MPP_OK) : (MPP_NOK);
 }
-
 
 MPP_RET mpp_buffer_put_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_put invalid input: buffer NULL from %s\n", caller);
+    struct MppBufferImpl *buf_impl = (struct MppBufferImpl *)buffer;
+
+
+    if (NULL == buf_impl) {
+        mpp_err("mpp_buffer_put invalid input: buffer NULL from %s\n",
+                caller);
         return MPP_ERR_UNKNOW;
     }
+    buf_impl->ref_count--;
+    if (!buf_impl->ref_count) {
+        if (buf_impl->info.ptr) {
+            munmap(buf_impl->info.ptr, buf_impl->buf_size);
+            buf_impl->info.ptr = NULL;
+        }
+        if (buf_impl->vmb.dma_buf_fd >= 0) {
+            close(buf_impl->vmb.dma_buf_fd);
+        }
 
-    return mpp_buffer_ref_dec((MppBufferImpl*)buffer, caller);
+        if (!buf_impl->buf_import)
+            mpp_mpi_buf_free(&buf_impl->vmb);
+
+        mpp_free(buf_impl);
+    }
+    return MPP_OK;
 }
 
 MPP_RET mpp_buffer_inc_ref_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_inc_ref invalid input: buffer NULL from %s\n", caller);
+    struct MppBufferImpl *buf_impl = (struct MppBufferImpl *)buffer;
+
+    if (NULL == buf_impl) {
+        mpp_err
+        ("mpp_buffer_inc_ref invalid input: buffer NULL from %s\n",
+         caller);
         return MPP_ERR_UNKNOW;
     }
-
-    return mpp_buffer_ref_inc((MppBufferImpl*)buffer, caller);
+    buf_impl->ref_count++;
+    return MPP_OK;
 }
 
-MPP_RET mpp_buffer_read_with_caller(MppBuffer buffer, size_t offset, void *data, size_t size, const char *caller)
+MPP_RET mpp_buffer_read_with_caller(MppBuffer buffer, size_t offset, void *data,
+                                    size_t size, const char *caller)
 {
-    if (NULL == buffer || NULL == data) {
-        mpp_err("mpp_buffer_read invalid input: buffer %p data %p from %s\n",
-                buffer, data, caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    void *src = NULL;
+
+    if (NULL == p || NULL == data) {
+        mpp_err
+        ("mpp_buffer_read invalid input: buffer %p data %p from %s\n",
+         buffer, data, caller);
         return MPP_ERR_UNKNOW;
     }
 
     if (0 == size)
         return MPP_OK;
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     if (NULL == p->info.ptr)
-        mpp_buffer_mmap(p, caller);
+        p->info.ptr = mmap(NULL, p->buf_size, PROT_READ | PROT_WRITE , MAP_SHARED, p->vmb.dma_buf_fd, 0);
 
-    void *src = p->info.ptr;
+    src = p->info.ptr;
     mpp_assert(src != NULL);
     if (src)
-        memcpy(data, (char*)src + offset, size);
+        memcpy(data, (char *)src + offset, size);
 
     return MPP_OK;
 }
 
-MPP_RET mpp_buffer_write_with_caller(MppBuffer buffer, size_t offset, void *data, size_t size, const char *caller)
+MPP_RET mpp_buffer_write_with_caller(MppBuffer buffer, size_t offset,
+                                     void *data, size_t size,
+                                     const char *caller)
 {
-    if (NULL == buffer || NULL == data) {
-        mpp_err("mpp_buffer_write invalid input: buffer %p data %p from %s\n",
-                buffer, data, caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    void *dst = NULL;
+
+    if (NULL == p || NULL == data) {
+        mpp_err
+        ("mpp_buffer_write invalid input: buffer %p data %p from %s\n",
+         buffer, data, caller);
         return MPP_ERR_UNKNOW;
     }
 
     if (0 == size)
         return MPP_OK;
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     if (offset + size > p->info.size)
         return MPP_ERR_VALUE;
-    if (NULL == p->info.ptr)
-        mpp_buffer_mmap(p, caller);
 
-    void *dst = p->info.ptr;
+    if (NULL == p->info.ptr)
+        p->info.ptr = mmap(NULL, p->buf_size, PROT_READ | PROT_WRITE , MAP_SHARED, p->vmb.dma_buf_fd, 0);
+
+
+    dst = p->info.ptr;
     mpp_assert(dst != NULL);
     if (dst)
-        memcpy((char*)dst + offset, data, size);
+        memcpy((char *)dst + offset, data, size);
 
     return MPP_OK;
 }
 
 void *mpp_buffer_get_ptr_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_get_ptr invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+
+    if (NULL == p) {
+        mpp_err("mpp_buffer_get_ptr invalid NULL input from %s\n",
+                caller);
         return NULL;
     }
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
-    if (NULL == p->info.ptr)
-        mpp_buffer_mmap(p, caller);
+    if (NULL == p->info.ptr) {
+        p->info.ptr = mmap(NULL, p->buf_size, PROT_READ | PROT_WRITE , MAP_SHARED, p->vmb.dma_buf_fd, 0);
+    }
+
 
     mpp_assert(p->info.ptr != NULL);
+    memset(p->info.ptr, 0 , p->buf_size);
     if (NULL == p->info.ptr)
-        mpp_err("mpp_buffer_get_ptr buffer %p ret NULL from %s\n", buffer, caller);
+        mpp_err("mpp_buffer_get_ptr buffer %p ret NULL from %s\n",
+                buffer, caller);
 
     return p->info.ptr;
 }
 
 int mpp_buffer_get_fd_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_get_fd invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    int fd = -1;
+
+    if (p->info.fd > 0) {
+        return p->info.fd;
+    }
+    if (NULL == p) {
+        mpp_err("mpp_buffer_get_fd invalid NULL input from %s\n",
+                caller);
         return -1;
     }
-
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
-    int fd = p->info.fd;
+    fd = p->vmb.dma_buf_fd;
     mpp_assert(fd >= 0);
     if (fd < 0)
-        mpp_err("mpp_buffer_get_fd buffer %p fd %d from %s\n", buffer, fd, caller);
+        mpp_err("mpp_buffer_get_fd buffer %p fd %d from %s\n", buffer,
+                fd, caller);
 
+    p->info.fd = fd;
     return fd;
 }
 
+
+
 size_t mpp_buffer_get_size_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_get_size invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    if (NULL == p) {
+        mpp_err("mpp_buffer_get_size invalid NULL input from %s\n",
+                caller);
         return 0;
     }
-
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     if (p->info.size == 0)
-        mpp_err("mpp_buffer_get_size buffer %p ret zero size from %s\n", buffer, caller);
+        mpp_err("mpp_buffer_get_size buffer %p ret zero size from %s\n",
+                buffer, caller);
 
     return p->info.size;
 }
 
 int mpp_buffer_get_index_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_get_index invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    if (NULL == p) {
+        mpp_err("mpp_buffer_get_index invalid NULL input from %s\n",
+                caller);
         return -1;
     }
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     return p->info.index;
 }
 
 MPP_RET mpp_buffer_set_index_with_caller(MppBuffer buffer, int index,
                                          const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_set_index invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    if (NULL == p) {
+        mpp_err("mpp_buffer_set_index invalid NULL input from %s\n",
+                caller);
         return MPP_ERR_UNKNOW;
     }
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     p->info.index = index;
     return MPP_OK;
 }
 
-size_t  mpp_buffer_get_offset_with_caller(MppBuffer buffer, const char *caller)
+size_t mpp_buffer_get_offset_with_caller(MppBuffer buffer, const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_get_offset invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+
+    if (NULL == p) {
+        mpp_err("mpp_buffer_get_offset invalid NULL input from %s\n",
+                caller);
         return -1;
     }
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     return p->offset;
 }
 
-MPP_RET mpp_buffer_set_offset_with_caller(MppBuffer buffer, size_t offset, const char *caller)
+MPP_RET mpp_buffer_set_offset_with_caller(MppBuffer buffer, size_t offset,
+                                          const char *caller)
 {
-    if (NULL == buffer) {
-        mpp_err("mpp_buffer_set_offset invalid NULL input from %s\n", caller);
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
+    if (NULL == p) {
+        mpp_err("mpp_buffer_set_offset invalid NULL input from %s\n",
+                caller);
         return MPP_ERR_UNKNOW;
     }
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     p->offset = offset;
     return MPP_OK;
 }
 
-MPP_RET mpp_buffer_info_get_with_caller(MppBuffer buffer, MppBufferInfo *info, const char *caller)
+MPP_RET mpp_buffer_info_get_with_caller(MppBuffer buffer, MppBufferInfo * info,
+                                        const char *caller)
 {
+    struct MppBufferImpl *p = (struct MppBufferImpl *)buffer;
     if (NULL == buffer || NULL == info) {
-        mpp_err("mpp_buffer_info_get invalid input buffer %p info %p from %s\n",
-                buffer, info, caller);
+        mpp_err
+        ("mpp_buffer_info_get invalid input buffer %p info %p from %s\n",
+         buffer, info, caller);
         return MPP_ERR_UNKNOW;
     }
 
-    MppBufferImpl *p = (MppBufferImpl*)buffer;
     if (NULL == p->info.ptr)
-        mpp_buffer_mmap(p, caller);
+        p->info.ptr = mmap(NULL, p->buf_size, PROT_READ | PROT_WRITE , MAP_SHARED, p->vmb.dma_buf_fd, 0);
 
     *info = p->info;
-    (void)caller;
     return MPP_OK;
 }
 
@@ -286,7 +418,8 @@ MPP_RET mpp_buffer_group_get(MppBufferGroup *group, MppBufferType type, MppBuffe
         return MPP_ERR_UNKNOW;
     }
 
-    return mpp_buffer_group_init((MppBufferGroupImpl**)group, tag, caller, mode, type);
+    (void)tag;
+    return MPP_OK;
 }
 
 MPP_RET mpp_buffer_group_put(MppBufferGroup group)
@@ -296,7 +429,7 @@ MPP_RET mpp_buffer_group_put(MppBufferGroup group)
         return MPP_NOK;
     }
 
-    return mpp_buffer_group_deinit((MppBufferGroupImpl *)group);
+    return MPP_OK;
 }
 
 MPP_RET mpp_buffer_group_clear(MppBufferGroup group)
@@ -306,7 +439,7 @@ MPP_RET mpp_buffer_group_clear(MppBufferGroup group)
         return MPP_NOK;
     }
 
-    return mpp_buffer_group_reset((MppBufferGroupImpl *)group);
+    return MPP_OK;
 }
 
 RK_S32  mpp_buffer_group_unused(MppBufferGroup group)
@@ -316,17 +449,7 @@ RK_S32  mpp_buffer_group_unused(MppBufferGroup group)
         return MPP_NOK;
     }
 
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
     RK_S32 unused = 0;
-
-    if (p->mode == MPP_BUFFER_INTERNAL) {
-        if (p->limit_count)
-            unused = p->limit_count - p->count_used;
-        else
-            unused = 3; /* NOTE: 3 for 1 decoding 2 deinterlace buffer */
-    } else
-        unused = p->count_unused;
-
     return unused;
 }
 
@@ -337,8 +460,7 @@ size_t mpp_buffer_group_usage(MppBufferGroup group)
         return MPP_BUFFER_MODE_BUTT;
     }
 
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
-    return p->usage;
+    return 0;
 }
 
 MppBufferMode mpp_buffer_group_mode(MppBufferGroup group)
@@ -348,8 +470,7 @@ MppBufferMode mpp_buffer_group_mode(MppBufferGroup group)
         return MPP_BUFFER_MODE_BUTT;
     }
 
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
-    return p->mode;
+    return MPP_BUFFER_INTERNAL;
 }
 
 MppBufferType mpp_buffer_group_type(MppBufferGroup group)
@@ -359,8 +480,7 @@ MppBufferType mpp_buffer_group_type(MppBufferGroup group)
         return MPP_BUFFER_TYPE_BUTT;
     }
 
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
-    return p->type;
+    return MPP_BUFFER_TYPE_EXT_DMA;
 }
 
 MPP_RET mpp_buffer_group_limit_config(MppBufferGroup group, size_t size, RK_S32 count)
@@ -369,11 +489,9 @@ MPP_RET mpp_buffer_group_limit_config(MppBufferGroup group, size_t size, RK_S32 
         mpp_err_f("input invalid group %p\n", group);
         return MPP_NOK;
     }
-
-    MppBufferGroupImpl *p = (MppBufferGroupImpl *)group;
-    mpp_assert(p->mode == MPP_BUFFER_INTERNAL);
-    p->limit_size     = size;
-    p->limit_count    = count;
+    (void)group;
+    (void)size;
+    (void)count;
     return MPP_OK;
 }
 

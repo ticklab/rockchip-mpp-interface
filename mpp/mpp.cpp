@@ -464,6 +464,7 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
 
     timeout.tv_sec  = 0;
     timeout.tv_usec = 50000;
+    memset(enc_packet, 0, sizeof(venc_packet));
     ret = select(mClinetFd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret < 0) {
         mpp_err("select failed!\n");
@@ -768,89 +769,8 @@ MPP_RET Mpp::control_dec(MpiCmd cmd, MppParam param)
 {
     MPP_RET ret = MPP_NOK;
 
-    switch (cmd) {
-    case MPP_DEC_SET_FRAME_INFO: {
-        ;//ret = mpp_dec_control(mDec, cmd, param);
-    } break;
-    case MPP_DEC_SET_EXT_BUF_GROUP: {
-        mFrameGroup = (MppBufferGroup)param;
-        if (param) {
-            mExternalFrameGroup = 1;
-
-            mpp_dbg_info("using external buffer group %p\n", mFrameGroup);
-
-            if (mInitDone) {
-                ret = mpp_buffer_group_set_callback((MppBufferGroupImpl *)param,
-                                                    mpp_notify_by_buffer_group,
-                                                    (void *)this);
-
-                notify(MPP_DEC_NOTIFY_EXT_BUF_GRP_READY);
-            } else {
-                /*
-                 * NOTE: If frame buffer group is configured before decoder init
-                 * then the buffer limitation maybe not be correctly setup
-                 * without infomation from InfoChange frame.
-                 * And the thread signal connection may not be setup here. It
-                 * may have a bad effect on MPP efficiency.
-                 */
-                mpp_err("WARNING: setup buffer group before decoder init\n");
-            }
-        } else {
-            /* The buffer group should be destroyed before */
-            mExternalFrameGroup = 0;
-            ret = MPP_OK;
-        }
-    } break;
-    case MPP_DEC_SET_INFO_CHANGE_READY: {
-        mpp_dbg_info("set info change ready\n");
-
-        //ret = mpp_dec_control(mDec, cmd, param);
-        notify(MPP_DEC_NOTIFY_INFO_CHG_DONE | MPP_DEC_NOTIFY_BUFFER_MATCH);
-    } break;
-    case MPP_DEC_SET_PRESENT_TIME_ORDER :
-    case MPP_DEC_SET_PARSER_SPLIT_MODE :
-    case MPP_DEC_SET_PARSER_FAST_MODE :
-    case MPP_DEC_SET_IMMEDIATE_OUT :
-    case MPP_DEC_SET_DISABLE_ERROR :
-    case MPP_DEC_SET_ENABLE_DEINTERLACE : {
-        /*
-         * These control may be set before mpp_init
-         * When this case happen record the config and wait for decoder init
-         */
-        ;
-    } break;
-    case MPP_DEC_GET_STREAM_COUNT: {
-        AutoMutex autoLock(mPackets->mutex());
-        *((RK_S32 *)param) = mPackets->list_size();
-        ret = MPP_OK;
-    } break;
-    case MPP_DEC_GET_VPUMEM_USED_COUNT :
-    case MPP_DEC_SET_OUTPUT_FORMAT :
-    case MPP_DEC_QUERY : {
-        ;//ret = mpp_dec_control(mDec, cmd, param);
-    } break;
-    case MPP_DEC_SET_CFG : {
-        /*if (mDec)
-            ret = mpp_dec_control(mDec, cmd, param);
-        else if (param) {
-            MppDecCfgImpl *dec_cfg = (MppDecCfgImpl *)param;
-
-            ret = mpp_dec_set_cfg(&mDecInitcfg, &dec_cfg->cfg);
-        }*/
-    } break;
-    case MPP_DEC_GET_CFG : {
-        /* if (mDec)
-             ret = mpp_dec_control(mDec, cmd, param);
-         else if (param) {
-             MppDecCfgImpl *dec_cfg = (MppDecCfgImpl *)param;
-
-             memcpy(&dec_cfg->cfg, &mDecInitcfg, sizeof(dec_cfg->cfg));
-             ret = MPP_OK;
-         }*/
-    } break;
-    default : {
-    } break;
-    }
+    (void)cmd;
+    (void)param;
     return ret;
 }
 

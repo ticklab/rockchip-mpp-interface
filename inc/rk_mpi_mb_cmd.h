@@ -10,6 +10,8 @@ extern "C" {
 #endif
 #endif /* __cplusplus */
 #define IO_STRING_MAX_LEN 16
+#define SET_STRUCT_SIZE(struct_name, p) ((p)->struct_size = sizeof(struct struct_name))
+#define STRUCT_SIZE_INVALID(struct_name, p) ((p)->struct_size != sizeof(struct struct_name))
 
 /**
  * VALLOC_IOCTL_VERSION ioctl argument type.
@@ -20,6 +22,7 @@ struct valloc_version {
     int version_patchlevel;         /**< Patch level */
     int name_len;                   /**< Length of name buffer */
     char name[IO_STRING_MAX_LEN];   /**< Name of driver */
+    int struct_size;                /**< check struct size */
     int date_len;                   /**< Length of date buffer */
     char date[IO_STRING_MAX_LEN];   /**< User-space buffer to hold date */
     int desc_len;                   /**< Length of desc buffer */
@@ -49,6 +52,7 @@ struct valloc_mb {
     int pool_id;
     int mpi_buf_id;
     int dma_buf_fd;
+    int struct_size;
     int size;
     int flags;
 };

@@ -531,6 +531,7 @@ MPP_RET jpeg_comb_get_packet(MpiEncTestData *p)
             struct valloc_mb mb;
             memset(&mb, 0, sizeof(mb));
             mb.mpi_buf_id = enc_packet.u64priv_data;
+            mb.struct_size = sizeof(mb);
             ioctl(p->mem_fd, VALLOC_IOCTL_MB_GET_FD, &mb);
             mpp_log("jpeg mb->mpi_buf_id %d", mb.mpi_buf_id);
             mpp_log("jpeg buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
@@ -706,10 +707,6 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
 
         do {
             ret = mpi->encode_get_packet(ctx, &packet);
-            if (ret) {
-                mpp_err("mpp encode get packet failed\n");
-                goto RET;
-            }
 
             if (enc_packet.len) {
                 // write packet to file here
@@ -717,6 +714,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 size_t len  = enc_packet.len;
                 struct valloc_mb mb;
                 memset(&mb, 0, sizeof(mb));
+                mb.struct_size = sizeof(mb);
                 mb.mpi_buf_id = enc_packet.u64priv_data;
                 ioctl(p->mem_fd, VALLOC_IOCTL_MB_GET_FD, &mb);
                 mpp_log("mb->mpi_buf_id %d", mb.mpi_buf_id);
@@ -809,13 +807,6 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
         mpp_err_f("test data init failed ret %d\n", ret);
         goto MPP_TEST_OUT;
     }
-
-    ret = mpp_buffer_group_get_internal(&p->buf_grp, MPP_BUFFER_TYPE_DRM);
-    if (ret) {
-        mpp_err_f("failed to get mpp buffer group ret %d\n", ret);
-        goto MPP_TEST_OUT;
-    }
-
     ret = mpp_buffer_get(p->buf_grp, &p->frm_buf, p->frame_size + p->header_size);
     if (ret) {
         mpp_err_f("failed to get buffer for input frame ret %d\n", ret);
@@ -930,12 +921,6 @@ MPP_TEST_OUT:
         mpp_buffer_put(p->osd_buf);
         p->osd_buf = NULL;
     }
-
-    if (p->buf_grp) {
-        mpp_buffer_group_put(p->buf_grp);
-        p->buf_grp = NULL;
-    }
-
     test_ctx_deinit(&p);
 
     return ret;

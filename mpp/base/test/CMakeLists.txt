@@ -22,9 +22,6 @@ endmacro()
 # task system unit test
 add_mpp_base_test(mpp_task)
 
-# mpp_buffer unit test
-add_mpp_base_test(mpp_buffer)
-
 # mpp_packet unit test
 add_mpp_base_test(mpp_packet)
 

@@ -10,7 +10,6 @@ add_library(mpp_base STATIC
     mpp_dec_cfg.cpp
     mpp_cluster.cpp
     mpp_buf_slot.cpp
-    mpp_buffer_impl.cpp
     mpp_buffer.cpp
     mpp_packet.cpp
     mpp_frame.cpp
