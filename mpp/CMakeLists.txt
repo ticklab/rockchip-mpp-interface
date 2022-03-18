@@ -18,7 +18,6 @@ add_subdirectory(base)
 set (MPP_SRC
     mpp_info.cpp
     mpp.cpp
-    mpp_impl.cpp
     mpi.cpp
     )
 

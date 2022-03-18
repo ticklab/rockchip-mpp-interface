@@ -352,18 +352,15 @@ void    mpp_frame_set_eos(MppFrame frame, RK_U32 eos);
 RK_U32  mpp_frame_get_info_change(const MppFrame frame);
 void    mpp_frame_set_info_change(MppFrame frame, RK_U32 info_change);
 
+RK_S32  mpp_frame_has_meta(const MppFrame frame);
+MppMeta mpp_frame_get_meta(const MppFrame frame);
+void    mpp_frame_set_meta(MppFrame frame, MppMeta meta);
+
 /*
  * buffer parameter
  */
 MppBuffer mpp_frame_get_buffer(const MppFrame frame);
 void    mpp_frame_set_buffer(MppFrame frame, MppBuffer buffer);
-
-/*
- * meta data parameter
- */
-RK_S32  mpp_frame_has_meta(const MppFrame frame);
-MppMeta mpp_frame_get_meta(const MppFrame frame);
-void    mpp_frame_set_meta(MppFrame frame, MppMeta meta);
 
 /*
  * color related parameter

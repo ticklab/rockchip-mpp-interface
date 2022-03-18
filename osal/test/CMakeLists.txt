@@ -22,29 +22,9 @@ endmacro()
 # log system unit test
 add_mpp_osal_test(mpp_log)
 
-# env system unit test
-add_mpp_osal_test(mpp_env)
 
 # malloc system unit test
 add_mpp_osal_test(mpp_mem)
 
 # mpp_mem_pool unit test
 add_mpp_osal_test(mpp_mem_pool)
-
-# time system unit test
-add_mpp_osal_test(mpp_time)
-
-# trace system unit test
-add_mpp_osal_test(mpp_trace)
-
-# hardware platform feature detection unit test
-add_mpp_osal_test(mpp_platform)
-
-# software runtime feature detection unit test
-add_mpp_osal_test(mpp_runtime)
-
-# thread implement unit test
-add_mpp_osal_test(mpp_thread)
-
-# eventfd implement unit test
-add_mpp_osal_test(mpp_eventfd)

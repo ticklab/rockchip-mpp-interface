@@ -41,6 +41,14 @@
 
 RK_U32 mpp_dec_cfg_debug = 0;
 
+MPP_RET mpp_dec_cfg_set_u32(MppDecCfg cfg, const char *name, RK_U32 val)
+{
+    (void)cfg;
+    (void)name;
+    (void)val;
+    return MPP_OK;
+}
+#if 0
 #define EXPAND_AS_ENUM(name, func, type) \
     SET_##name, \
     GET_##name,
@@ -236,7 +244,7 @@ MppDecCfgService::~MppDecCfgService()
         mCfgApi = NULL;
     }
 }
-
+#endif
 void mpp_dec_cfg_set_default(MppDecCfgSet *cfg)
 {
     cfg->base.type = MPP_CTX_BUTT;
@@ -261,8 +269,8 @@ MPP_RET mpp_dec_cfg_init(MppDecCfg *cfg)
     }
 
     p->size = sizeof(*p);
-    p->api = MppDecCfgService::get()->get_api();
-    mpp_dec_cfg_set_default(&p->cfg);
+//    p->api = MppDecCfgService::get()->get_api();
+//   mpp_dec_cfg_set_default(&p->cfg);
 
     mpp_env_get_u32("mpp_dec_cfg_debug", &mpp_dec_cfg_debug, 0);
 
@@ -283,72 +291,13 @@ MPP_RET mpp_dec_cfg_deinit(MppDecCfg cfg)
     return MPP_OK;
 }
 
-#define ENC_CFG_SET_ACCESS(func_name, in_type, func_enum, func_type) \
-    MPP_RET func_name(MppDecCfg cfg, const char *name, in_type val) \
-    { \
-        if (NULL == cfg || NULL == name) { \
-            mpp_err_f("invalid input cfg %p name %p\n", cfg, name); \
-            return MPP_ERR_NULL_PTR; \
-        } \
-        MppDecCfgImpl *p = (MppDecCfgImpl *)cfg; \
-        const char **info = mpp_trie_get_info(p->api, name); \
-        if (NULL == info) { \
-            mpp_err_f("failed to set %s to %d\n", name, val); \
-            return MPP_NOK; \
-        } \
-        MppDecCfgApi *api = (MppDecCfgApi *)info; \
-        if (api->type_set != func_enum) { \
-            mpp_err_f("%s expect %s input NOT %s\n", api->name, \
-                      dec_cfg_func_names[api->type_set], \
-                      dec_cfg_func_names[func_enum]); \
-        } \
-        mpp_dec_cfg_dbg_set("name %s type %s\n", api->name, dec_cfg_func_names[api->type_set]); \
-        MPP_RET ret = ((func_type)api->api_set)(&p->cfg, val); \
-        return ret; \
-    }
-
-ENC_CFG_SET_ACCESS(mpp_dec_cfg_set_s32, RK_S32, SET_S32, CfgSetS32);
-ENC_CFG_SET_ACCESS(mpp_dec_cfg_set_u32, RK_U32, SET_U32, CfgSetU32);
-ENC_CFG_SET_ACCESS(mpp_dec_cfg_set_s64, RK_S64, SET_S64, CfgSetS64);
-ENC_CFG_SET_ACCESS(mpp_dec_cfg_set_u64, RK_U64, SET_U64, CfgSetU64);
-ENC_CFG_SET_ACCESS(mpp_dec_cfg_set_ptr, void *, SET_PTR, CfgSetPtr);
-
-#define ENC_CFG_GET_ACCESS(func_name, in_type, func_enum, func_type) \
-    MPP_RET func_name(MppDecCfg cfg, const char *name, in_type *val) \
-    { \
-        if (NULL == cfg || NULL == name) { \
-            mpp_err_f("invalid input cfg %p name %p\n", cfg, name); \
-            return MPP_ERR_NULL_PTR; \
-        } \
-        MppDecCfgImpl *p = (MppDecCfgImpl *)cfg; \
-        const char **info = mpp_trie_get_info(p->api, name); \
-        if (NULL == info) { \
-            mpp_err_f("failed to set %s to %d\n", name, val); \
-            return MPP_NOK; \
-        } \
-        MppDecCfgApi *api = (MppDecCfgApi *)info; \
-        if (api->type_get != func_enum) { \
-            mpp_err_f("%s expect %s input not %s\n", api->name, \
-                      dec_cfg_func_names[api->type_get], \
-                      dec_cfg_func_names[func_enum]); \
-        } \
-        mpp_dec_cfg_dbg_get("name %s type %s\n", api->name, dec_cfg_func_names[api->type_get]); \
-        MPP_RET ret = ((func_type)api->api_get)(&p->cfg, val); \
-        return ret; \
-    }
-
-ENC_CFG_GET_ACCESS(mpp_dec_cfg_get_s32, RK_S32, GET_S32, CfgGetS32);
-ENC_CFG_GET_ACCESS(mpp_dec_cfg_get_u32, RK_U32, GET_U32, CfgGetU32);
-ENC_CFG_GET_ACCESS(mpp_dec_cfg_get_s64, RK_S64, GET_S64, CfgGetS64);
-ENC_CFG_GET_ACCESS(mpp_dec_cfg_get_u64, RK_U64, GET_U64, CfgGetU64);
-ENC_CFG_GET_ACCESS(mpp_dec_cfg_get_ptr, void *, GET_PTR, CfgGetPtr);
 
 void mpp_dec_cfg_show(void)
 {
-    RK_U32 i;
 
     mpp_log("dumping valid configure string start\n");
-
+#if 0
+    RK_U32 i;
     for (i = 0; i < MPP_ARRAY_ELEMS(dec_cfg_apis); i++)
         mpp_log("%-25s type set:%s get:%s\n", dec_cfg_apis[i]->name,
                 dec_cfg_func_names[dec_cfg_apis[i]->type_set],
@@ -359,4 +308,5 @@ void mpp_dec_cfg_show(void)
     mpp_log("total api count %d with node %d -> %d info\n",
             MPP_ARRAY_ELEMS(dec_cfg_apis), dec_node_len,
             mpp_trie_get_node_count(MppDecCfgService::get()->get_api()));
+#endif
 }

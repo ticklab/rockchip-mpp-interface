@@ -70,17 +70,15 @@ MPP_RET mpp_packet_set_extra_data(MppPacket packet);
 void        mpp_packet_set_buffer(MppPacket packet, MppBuffer buffer);
 MppBuffer   mpp_packet_get_buffer(const MppPacket packet);
 
+MppMeta mpp_packet_get_meta(const MppPacket packet);
+RK_S32 mpp_packet_has_meta(const MppPacket packet);
+
+
 /*
  * data access interface
  */
 MPP_RET mpp_packet_read(MppPacket packet, size_t offset, void *data, size_t size);
 MPP_RET mpp_packet_write(MppPacket packet, size_t offset, void *data, size_t size);
-
-/*
- * meta data access interface
- */
-RK_S32  mpp_packet_has_meta(const MppPacket packet);
-MppMeta mpp_packet_get_meta(const MppPacket packet);
 
 /*
  * multi packet sequence interface for slice/split encoding/decoding

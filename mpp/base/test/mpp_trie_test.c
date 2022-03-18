@@ -68,18 +68,18 @@ int main()
 
     mpp_trie_init(&trie, node_cnt, info_cnt);
 
-    start = mpp_time();
+    //  start = mpp_time();
     mpp_trie_add_info(trie, &test_info[0].name);
     mpp_trie_add_info(trie, &test_info[1].name);
     mpp_trie_add_info(trie, &test_info[2].name);
     mpp_trie_add_info(trie, &test_info[3].name);
-    end = mpp_time();
+//   end = mpp_time();
     mpp_log("add act time %lld us\n", end - start);
 
     for (i = 0; i < MPP_ARRAY_ELEMS(test_str); i++) {
-        start = mpp_time();
+        //  start = mpp_time();
         info = mpp_trie_get_info(trie, test_str[i]);
-        end = mpp_time();
+        //   end = mpp_time();
         if (info) {
             TestAction *act = (TestAction *)info;
 

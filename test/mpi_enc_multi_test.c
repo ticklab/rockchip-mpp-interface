@@ -565,9 +565,9 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
         MppBuffer frm_buf_in  = p->frm_buf[index];
         MppBuffer pkt_buf_out = p->pkt_buf[index];
         MppBuffer md_info_buf = p->md_buf[index];
-
+        mpp_log("mpp_buffer_get_ptr in");
         void *buf = mpp_buffer_get_ptr(frm_buf_in);
-
+        mpp_log("mpp_buffer_get_ptr buf %p", buf);
         if (i == MPI_ENC_IO_COUNT)
             i = 0;
 

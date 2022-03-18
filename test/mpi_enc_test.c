@@ -590,6 +590,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
         struct venc_packet enc_packet;
         memset(&enc_packet, 0, sizeof(enc_packet));
         void *buf = mpp_buffer_get_ptr(p->frm_buf);
+
         RK_S32 cam_frm_idx = -1;
         MppBuffer cam_buf = NULL;
         RK_U32 eoi = 1;

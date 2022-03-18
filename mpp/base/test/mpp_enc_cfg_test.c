@@ -62,12 +62,12 @@ int main()
     mpp_log("before set: rc mode %d bps_target %d\n",
             impl->cfg.rc.rc_mode, impl->cfg.rc.bps_target);
 
-    start = mpp_time();
+    // start = mpp_time();
     ret = mpp_enc_cfg_set_u32(cfg, "rc:mode", rc_mode);
     ret = mpp_enc_cfg_set_s32(cfg, "rc:mode", rc_mode);
     ret = mpp_enc_cfg_set_s32(cfg, "rc:bps", 400000);
     ret = mpp_enc_cfg_set_s32(cfg, "rc:bps_target", bps_target);
-    end = mpp_time();
+    //  end = mpp_time();
     mpp_log("set s32 time %lld us\n", end - start);
 
     mpp_log("after  set: rc mode %d bps_target %d\n",

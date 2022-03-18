@@ -19,26 +19,14 @@ macro(add_mpp_base_test module)
     endif()
 endmacro()
 
-# task system unit test
-add_mpp_base_test(mpp_task)
-
 # mpp_packet unit test
 add_mpp_base_test(mpp_packet)
 
-# mpp_bitwriter unit test
-add_mpp_base_test(mpp_bit)
 
 # mpp_trie unit test
 add_mpp_base_test(mpp_trie)
 
-# mpp_cluster unit test
-add_mpp_base_test(mpp_cluster)
 
 # mpp_enc_cfg unit test
 add_mpp_base_test(mpp_enc_cfg)
 
-# mpp_enc_ref unit test
-add_mpp_base_test(mpp_enc_ref)
-
-# mpp_dec_cfg unit test
-add_mpp_base_test(mpp_dec_cfg)

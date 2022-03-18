@@ -18,33 +18,15 @@ else()
     message(STATUS "compile without drm support")
 endif()
 
-set(MPP_ALLOCATOR
-    allocator/allocator_std.c
-    allocator/allocator_ion.c
-    allocator/allocator_ext_dma.c
-    ${DRM_FILES}
-)
-
 set(MPP_DRIVER
-    driver/mpp_server.cpp
-    driver/mpp_device.c
-    driver/mpp_service.c
-    driver/vcodec_service.c
 	driver/mpp_vcodec_clinet.c
 )
 
 add_library(osal STATIC
-    mpp_soc.cpp
-    mpp_platform.cpp
-    mpp_runtime.cpp
-    mpp_allocator.cpp
     mpp_mem_pool.cpp
     mpp_callback.cpp
-    mpp_eventfd.cpp
     mpp_thread.cpp
     mpp_common.cpp
-    mpp_queue.cpp
-    mpp_trace.cpp
     mpp_lock.cpp
     mpp_time.cpp
     mpp_list.cpp
@@ -55,19 +37,15 @@ add_library(osal STATIC
     osal_2str.c
     # Those files have a compiler marco protection, so only target
     # OS will be built
-    android/os_allocator.c
     android/os_mem.c
     android/os_env.c
     android/os_log.c
-    linux/os_allocator.c
     linux/os_mem.c
     linux/os_env.c
     linux/os_log.cpp
-    windows/os_allocator.c
     windows/os_mem.c
     windows/os_env.c
     windows/os_log.c
-    ${MPP_ALLOCATOR}
     ${MPP_DRIVER}
 )
 
