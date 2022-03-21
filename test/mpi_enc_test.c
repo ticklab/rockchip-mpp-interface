@@ -121,6 +121,7 @@ typedef struct {
     RK_S32 gop_len;
     RK_S32 vi_len;
     RK_S32 mem_fd;
+    RK_U32 jpeg_combo_en;
 } MpiEncTestData;
 
 MPP_RET test_ctx_init(MpiEncTestData **data, MpiEncTestArgs *cmd)
@@ -284,7 +285,7 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
     cfg = p->cfg;
 
 
-    if (p->type == MPP_VIDEO_CodingMJPEG) {
+    if (p->type == MPP_VIDEO_CodingMJPEG && p->jpeg_combo_en) {
         mpi = p->mpi_jpeg;
         ctx = p->ctx_jpeg;
         cfg = p->cfg_jpeg;
@@ -537,7 +538,7 @@ MPP_RET jpeg_comb_get_packet(MpiEncTestData *p)
             mpp_log("jpeg buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
             src_ptr = mmap(NULL, enc_packet.buf_size, PROT_READ, MAP_SHARED, mb.dma_buf_fd, 0);
             snprintf(name, name_len, "/sdcard/jpegen_out_%d_frm%d.jpeg", pid, p->jpeg_cnt++);
-            mpp_log("get a jpeg stream size %d", len);
+            mpp_log("get a jpeg stream size %d file %s", len, name);
             save_to_file(name, src_ptr, len);
 
             if (src_ptr)
@@ -571,7 +572,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
         RK_S32 cam_frm_idx = -1;
         MppBuffer cam_buf = NULL;
         RK_U32 eoi = 1;
-
+        RK_U32 jpeg_snap = 0;
         packet = &enc_packet;
 
         if (p->fp_input) {
@@ -623,9 +624,10 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
         mpp_frame_set_ver_stride(frame, p->ver_stride);
         mpp_frame_set_fmt(frame, p->fmt);
         mpp_frame_set_eos(frame, p->frm_eos);
-
         mpp_frame_set_jpege_chan_id(frame, -1);
-        if (!(p->frame_count % 10)) {
+
+        if (!(p->frame_count % 10) && p->jpeg_combo_en) {
+            jpeg_snap = 1;
             mpp_frame_set_jpege_chan_id(frame, 1);
         }
 
@@ -707,7 +709,9 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
 
         do {
             ret = mpi->encode_get_packet(ctx, &packet);
-
+            if (ret) {
+                goto RET;
+            }
             if (enc_packet.len) {
                 // write packet to file here
                 void *src_ptr = NULL;
@@ -744,7 +748,8 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
             }
         } while (!eoi);
 
-        jpeg_comb_get_packet(p);
+        if (p->jpeg_combo_en && jpeg_snap)
+            jpeg_comb_get_packet(p);
 
         if (cam_frm_idx >= 0)
             camera_source_put_frame(p->cam_ctx, cam_frm_idx);
@@ -803,6 +808,8 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
     mpp_log("mpi_enc_test start\n");
 
     ret = test_ctx_init(&p, cmd);
+
+    mpp_env_get_u32("combo_en", &p->jpeg_combo_en, 0);
     if (ret) {
         mpp_err_f("test data init failed ret %d\n", ret);
         goto MPP_TEST_OUT;
@@ -854,13 +861,13 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
     }
 
     //ch1
-    ret = mpi_enc_create_jpegcomb(p);
-    if (ret) {
-        mpp_err_f("mpi_enc_create_jpegcomb ret %d\n", ret);
-        goto MPP_TEST_OUT;
+    if (p->jpeg_combo_en) {
+        ret = mpi_enc_create_jpegcomb(p);
+        if (ret) {
+            mpp_err_f("mpi_enc_create_jpegcomb ret %d\n", ret);
+            goto MPP_TEST_OUT;
+        }
     }
-
-
     ret = test_mpp_run(p);
     if (ret) {
         mpp_err_f("test mpp run failed ret %d\n", ret);
@@ -873,10 +880,12 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
         goto MPP_TEST_OUT;
     }
 
-    ret = p->mpi->reset(p->ctx_jpeg);
-    if (ret) {
-        mpp_err("mpi->reset failed\n");
-        goto MPP_TEST_OUT;
+    if (p->ctx_jpeg) {
+        ret = p->mpi->reset(p->ctx_jpeg);
+        if (ret) {
+            mpp_err("mpi->reset failed\n");
+            goto MPP_TEST_OUT;
+        }
     }
 
 MPP_TEST_OUT:
