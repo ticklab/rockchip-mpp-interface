@@ -462,8 +462,8 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
     FD_ZERO(&read_fds);
     FD_SET(mClinetFd, &read_fds);
 
-    timeout.tv_sec  = 0;
-    timeout.tv_usec = 50000;
+    timeout.tv_sec  = 10;
+    timeout.tv_usec = 0;
     memset(enc_packet, 0, sizeof(venc_packet));
     ret = select(mClinetFd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret < 0) {
