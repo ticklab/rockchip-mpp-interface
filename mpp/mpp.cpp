@@ -112,6 +112,7 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     attr.coding = coding;
     attr.type = type;
     attr.online = 0;
+    attr.shared_buf_en = 0;
     mClinetFd = mpp_vcodec_open();
     if (mClinetFd < 0) {
         mpp_err("mpp_vcodec dev open fail");
@@ -431,6 +432,7 @@ MPP_RET Mpp::put_frame(MppFrame frame)
     frame_info.offset_y = mpp_frame_get_offset_y(frame);
     frame_info.fmt = mpp_frame_get_fmt(frame);
     frame_info.fd = mpp_buffer_get_fd(buf);
+    frame_info.pts = mpp_frame_get_pts(frame);
     frame_info.jpeg_chan_id = mpp_frame_get_jpege_chan_id(frame);
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_IN_FRM_RDY, 0, sizeof(frame_info), &frame_info);
     if (ret) {

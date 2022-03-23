@@ -1236,7 +1236,7 @@ typedef struct EncOSDAlphaCfg_t {
 typedef struct EncOSDQpCfg_t {
     RK_U32 qp_adj_en  ;
     RK_U32 qp_adj_sel ;
-    RK_U32 qp         ;
+    RK_S32 qp         ;
     RK_U32 qp_max     ;
     RK_U32 qp_min     ;
     RK_U32 qp_prj     ;
