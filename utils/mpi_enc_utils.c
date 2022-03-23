@@ -315,6 +315,14 @@ MPP_RET mpi_enc_test_cmd_update_by_args(MpiEncTestArgs* cmd, int argc, char **ar
                     goto PARSE_OPINIONS_OUT;
                 }
             } break;
+            case 'c' : {
+                if (next) {
+                    cmd->chan_id = atoi(next);
+                } else {
+                    mpp_log("input chan_id is invalid\n");
+                    goto PARSE_OPINIONS_OUT;
+                }
+            } break;
             default : {
                 mpp_err("skip invalid opt %c\n", *opt);
             } break;
@@ -730,10 +738,12 @@ MPP_RET mpi_enc_gen_osd_data3(MppEncOSDData3 *osd_data, MppBuffer *osd_buf ,
     if (buf) {
         void *ptr = mpp_buffer_get_ptr(buf);
         mpp_assert(ptr);
-        FILE *fp = fopen("/sdcard/wind_ABGR8888", "rb");
+        FILE *fp = fopen("/sdcard/wind_ABGR8888.ABGR8888", "rb");
         if (fp) {
             fread(ptr, 1, buf_size, fp);
             fclose(fp);
+        } else {
+            mpp_log("fail open osd data");
         }
     }
 
@@ -758,7 +768,7 @@ MPP_RET mpi_enc_gen_osd_data3(MppEncOSDData3 *osd_data, MppBuffer *osd_buf ,
 
         region->rbuv_swap = 1;
         region->stride = 512;
-        region->fmt = 0;
+        region->fmt = MPP_FMT_ARGB8888;
         region->range_trns_en = 0;
         region->range_trns_sel = 1;
 
@@ -766,6 +776,11 @@ MPP_RET mpi_enc_gen_osd_data3(MppEncOSDData3 *osd_data, MppBuffer *osd_buf ,
         region->alpha_cfg.bg_alpha = 0;
         region->alpha_cfg.fg_alpha = 0;
         region->alpha_cfg.fg_alpha_sel = 0;
+        region->qp_cfg.qp_adj_en = 1;
+        region->qp_cfg.qp_adj_sel = 0;
+        region->qp_cfg.qp_min = 10;
+        region->qp_cfg.qp_max = 51;
+        region->qp_cfg.qp = -10;
 
         region->osd_buf.fd = mpp_buffer_get_fd(buf);
     }

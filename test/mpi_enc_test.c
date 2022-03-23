@@ -122,6 +122,8 @@ typedef struct {
     RK_S32 vi_len;
     RK_S32 mem_fd;
     RK_U32 jpeg_combo_en;
+    RK_U32 jpeg_combo_id;
+    RK_U32 chan_id;
 } MpiEncTestData;
 
 MPP_RET test_ctx_init(MpiEncTestData **data, MpiEncTestArgs *cmd)
@@ -169,6 +171,7 @@ MPP_RET test_ctx_init(MpiEncTestData **data, MpiEncTestArgs *cmd)
     p->fps_out_flex = cmd->fps_out_flex;
     p->fps_out_den  = cmd->fps_out_den;
     p->fps_out_num  = cmd->fps_out_num;
+    p->chan_id      = cmd->chan_id;
 
 
     p->mem_fd = open("/dev/mpi/valloc", O_RDWR | O_CLOEXEC);
@@ -556,7 +559,7 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
     MppApi *mpi;
     MppCtx ctx;
     RK_U32 cap_num = 0;
-
+    RK_U64  pts = 0;
     if (NULL == p)
         return MPP_ERR_NULL_PTR;
 
@@ -623,12 +626,14 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
         mpp_frame_set_hor_stride(frame, p->hor_stride);
         mpp_frame_set_ver_stride(frame, p->ver_stride);
         mpp_frame_set_fmt(frame, p->fmt);
+
+        mpp_frame_set_pts(frame, pts);
         mpp_frame_set_eos(frame, p->frm_eos);
         mpp_frame_set_jpege_chan_id(frame, -1);
-
+        pts += 33000;
         if (!(p->frame_count % 10) && p->jpeg_combo_en) {
             jpeg_snap = 1;
-            mpp_frame_set_jpege_chan_id(frame, 1);
+            mpp_frame_set_jpege_chan_id(frame, p->jpeg_combo_id);
         }
 
         if (p->fp_input && feof(p->fp_input))
@@ -748,8 +753,10 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
             }
         } while (!eoi);
 
-        if (p->jpeg_combo_en && jpeg_snap)
+        if (p->jpeg_combo_en && jpeg_snap) {
+            mpp_log("jpeg snap get packet");
             jpeg_comb_get_packet(p);
+        }
 
         if (cam_frm_idx >= 0)
             camera_source_put_frame(p->cam_ctx, cam_frm_idx);
@@ -769,18 +776,25 @@ RET:
 int mpi_enc_create_jpegcomb(MpiEncTestData *p)
 {
     MPP_RET ret = MPP_OK;
+    vcodec_attr attr;
+    memset(&attr, 0 , sizeof(attr));
     ret = mpp_create(&p->ctx_jpeg, &p->mpi_jpeg);
     if (ret) {
         mpp_err("mpp_create failed ret %d\n", ret);
         return ret;
     }
 
+
     mpp_log("%p mpi_enc_test encoder test start w %d h %d type %d\n",
             p->ctx, p->width, p->height, p->type);
 
-    p->type = MPP_VIDEO_CodingMJPEG;
+    attr.chan_id = 6;
+    p->jpeg_combo_id = attr.chan_id;
+    attr.coding = MPP_VIDEO_CodingMJPEG;
+    attr.type = MPP_CTX_ENC;
 
-    ret = mpp_init(p->ctx_jpeg, MPP_CTX_ENC, p->type);
+    ret = mpp_init_ext(p->ctx_jpeg, &attr);
+
     if (ret) {
         mpp_err("mpp_init failed ret %d\n", ret);
         return ret;
@@ -804,6 +818,8 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
 {
     MPP_RET ret = MPP_OK;
     MpiEncTestData *p = NULL;
+    vcodec_attr attr;
+    memset(&attr, 0 , sizeof(attr));
 
     mpp_log("mpi_enc_test start\n");
 
@@ -842,7 +858,12 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
          goto MPP_TEST_OUT;
      }*/
 
-    ret = mpp_init(p->ctx, MPP_CTX_ENC, p->type);
+    attr.chan_id = p->chan_id;
+    attr.coding = p->type;
+    attr.type = MPP_CTX_ENC;
+
+    ret = mpp_init_ext(p->ctx, &attr);
+
     if (ret) {
         mpp_err("mpp_init failed ret %d\n", ret);
         goto MPP_TEST_OUT;
@@ -912,8 +933,8 @@ MPP_TEST_OUT:
     }
 
     if (p->cfg_jpeg) {
-        mpp_enc_cfg_deinit(p->cfg);
-        p->cfg = NULL;
+        mpp_enc_cfg_deinit(p->cfg_jpeg);
+        p->cfg_jpeg = NULL;
     }
 
     if (p->frm_buf) {

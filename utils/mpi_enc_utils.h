@@ -53,6 +53,7 @@ typedef struct MpiEncTestArgs_t {
     RK_S32              gop_mode;
     RK_S32              gop_len;
     RK_S32              vi_len;
+    RK_U32              chan_id;
 
     MppEncHeaderMode    header_mode;
 
