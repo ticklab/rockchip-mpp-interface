@@ -40,7 +40,7 @@
 #include "mpi_enc_utils.h"
 #include "camera_source.h"
 #include "rk_mpi_mb_cmd.h"
-
+#include "osd_test.h"
 
 
 
@@ -68,6 +68,13 @@ typedef struct {
     MppEncCfg cfg_jpeg;
 
     MppEncOSDData3   osd_data_v3;
+    MppBuffer osd_buf[MAX_REGION_CNT];
+    MppBuffer inv_buf[MAX_REGION_CNT];
+    RK_U8 *osd_pattern;
+    RK_U32 osd_pattern_width;
+    RK_U32 osd_pattern_height;
+    MppFrameFormat osd_pattern_fmt;
+
     MppEncROIRegion roi_region[3];
     MppEncROICfg    roi_cfg;
 
@@ -76,7 +83,6 @@ typedef struct {
     MppBuffer frm_buf;
     MppBuffer pkt_buf;
 
-    MppBuffer osd_buf;
     MppEncSeiMode sei_mode;
     MppEncHeaderMode header_mode;
 
@@ -312,6 +318,8 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
     mpp_enc_cfg_set_s32(cfg, "prep:hor_stride", p->hor_stride);
     mpp_enc_cfg_set_s32(cfg, "prep:ver_stride", p->ver_stride);
     mpp_enc_cfg_set_s32(cfg, "prep:format", p->fmt);
+    mpp_enc_cfg_set_s32(cfg, "prep:rotation", 0);
+    mpp_enc_cfg_set_s32(cfg, "prep:mirroring", 0);
 
     mpp_enc_cfg_set_s32(cfg, "rc:mode", p->rc_mode);
 
@@ -659,8 +667,15 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
             if (p->osd_enable) {
                 p->osd_data_v3.change = 1;
 
-                mpi_enc_gen_osd_data3(&p->osd_data_v3, &p->osd_buf, p->width,
-                                      p->height, (RK_U32)p->frame_count);
+                if (!p->osd_pattern) {
+                    p->osd_pattern_width = 128;
+                    p->osd_pattern_height = 128;
+                    gen_smpte_bar_argb(&p->osd_pattern, p->osd_pattern_width, p->osd_pattern_height / SMPTE_BAR_CNT);
+                }
+
+                osd3_get_test_case(&p->osd_data_v3, p->osd_buf, p->inv_buf, p->osd_pattern,
+                                   p->osd_pattern_width, p->osd_pattern_height, (RK_U32)p->frame_count % OSD3_TEST_CASE_CNT);
+
                 ret = mpi->control(ctx, MPP_ENC_SET_OSD_DATA_CFG, &p->osd_data_v3);
             }
 
@@ -818,6 +833,7 @@ int mpi_enc_test(MpiEncTestArgs *cmd)
 {
     MPP_RET ret = MPP_OK;
     MpiEncTestData *p = NULL;
+    RK_U32 i = 0;
     vcodec_attr attr;
     memset(&attr, 0 , sizeof(attr));
 
@@ -947,10 +963,23 @@ MPP_TEST_OUT:
         p->pkt_buf = NULL;
     }
 
-    if (p->osd_buf) {
-        mpp_buffer_put(p->osd_buf);
-        p->osd_buf = NULL;
+    for (i = 0; i < MAX_REGION_CNT; i++) {
+        if (p->osd_buf[i]) {
+            mpp_buffer_put(p->osd_buf[i]);
+            p->osd_buf[i] = NULL;
+        }
+
+        if (p->inv_buf[i]) {
+            mpp_buffer_put(p->inv_buf[i]);
+            p->inv_buf[i] = NULL;
+        }
     }
+
+    if (p->osd_pattern) {
+        free(p->osd_pattern);
+        p->osd_pattern = NULL;
+    }
+
     test_ctx_deinit(&p);
 
     return ret;

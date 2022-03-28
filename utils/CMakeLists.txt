@@ -9,6 +9,7 @@ add_library(utils STATIC
     iniparser.c
     dictionary.c
     camera_source.c
+    osd_test.c
     )
 
 target_link_libraries(utils mpp_base)
