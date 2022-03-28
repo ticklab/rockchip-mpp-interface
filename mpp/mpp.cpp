@@ -519,25 +519,16 @@ MPP_RET Mpp::release_packet(MppPacket *packet)
     if (!mInitDone)
         return MPP_ERR_INIT;
 
-    RK_S32 ret;
+    MPP_RET ret = MPP_OK;
     venc_packet *enc_packet  = (venc_packet *) *packet;
-    struct timeval timeout;
     if (*packet == NULL) {
         return MPP_NOK;
     }
 
-    fd_set read_fds;
-    FD_ZERO(&read_fds);
-    FD_SET(mClinetFd, &read_fds);
-
-    if (packet == NULL) {
-        return MPP_NOK;
-    }
-
     if (mClinetFd >= 0) {
-        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_END, 0, sizeof(enc_packet), &enc_packet);
+        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_END, 0, sizeof(*enc_packet), enc_packet);
     }
-    return MPP_OK;
+    return ret;
 }
 
 
