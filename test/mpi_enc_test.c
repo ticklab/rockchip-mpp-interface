@@ -286,6 +286,8 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
     MppApi *mpi;
     MppCtx ctx;
     MppEncCfg cfg;
+    RK_U32 debreath_en = 0;
+    RK_U32 debreath_s = 0;
 
     if (NULL == p)
         return MPP_ERR_NULL_PTR;
@@ -309,6 +311,7 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
         p->fps_out_den = 1;
     if (p->fps_out_num == 0)
         p->fps_out_num = 30;
+
 
     if (!p->bps)
         p->bps = p->width * p->height / 8 * (p->fps_out_num / p->fps_out_den);
@@ -336,6 +339,14 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
     mpp_enc_cfg_set_u32(cfg, "rc:drop_mode", MPP_ENC_RC_DROP_FRM_DISABLED);
     mpp_enc_cfg_set_u32(cfg, "rc:drop_thd", 20);        /* 20% of max bps */
     mpp_enc_cfg_set_u32(cfg, "rc:drop_gap", 1);         /* Do not continuous drop frame */
+
+    if (p->type != MPP_VIDEO_CodingMJPEG) {
+        mpp_env_get_u32("dbrh_en", &debreath_en, 0);
+        mpp_env_get_u32("dbrh_s",  &debreath_s, 16);
+    }
+
+    mpp_enc_cfg_set_u32(cfg, "rc:debreath_en", debreath_en);
+    mpp_enc_cfg_set_u32(cfg, "rc:debreath_strength", debreath_s);
 
     /* setup bitrate for different rc_mode */
     mpp_enc_cfg_set_s32(cfg, "rc:bps_target", p->bps);
@@ -545,7 +556,6 @@ MPP_RET jpeg_comb_get_packet(MpiEncTestData *p)
             mb.mpi_buf_id = enc_packet.u64priv_data;
             mb.struct_size = sizeof(mb);
             ioctl(p->mem_fd, VALLOC_IOCTL_MB_GET_FD, &mb);
-            mpp_log("jpeg mb->mpi_buf_id %d", mb.mpi_buf_id);
             mpp_log("jpeg buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
             src_ptr = mmap(NULL, enc_packet.buf_size, PROT_READ, MAP_SHARED, mb.dma_buf_fd, 0);
             snprintf(name, name_len, "/sdcard/jpegen_out_%d_frm%d.jpeg", pid, p->jpeg_cnt++);
@@ -741,10 +751,8 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 mb.struct_size = sizeof(mb);
                 mb.mpi_buf_id = enc_packet.u64priv_data;
                 ioctl(p->mem_fd, VALLOC_IOCTL_MB_GET_FD, &mb);
-                mpp_log("mb->mpi_buf_id %d", mb.mpi_buf_id);
-                mpp_log("buf_size %d, info.fd %d enc_packet.len %d", enc_packet.buf_size, mb.dma_buf_fd, enc_packet.len);
+                mpp_log("frame_count %d enc_packet.len %d, temporal_id %d", p->frame_count, enc_packet.len, enc_packet.temporal_id);
                 src_ptr = mmap(NULL, enc_packet.buf_size, PROT_READ, MAP_SHARED, mb.dma_buf_fd, 0);
-                mpp_log("src_ptr %p enc_packet.offset %d", src_ptr, enc_packet.offset);
                 p->pkt_eos = 0;
 
                 if (p->fp_output && src_ptr) {
@@ -807,6 +815,7 @@ int mpi_enc_create_jpegcomb(MpiEncTestData *p)
     p->jpeg_combo_id = attr.chan_id;
     attr.coding = MPP_VIDEO_CodingMJPEG;
     attr.type = MPP_CTX_ENC;
+    p->type = MPP_VIDEO_CodingMJPEG;
 
     ret = mpp_init_ext(p->ctx_jpeg, &attr);
 
