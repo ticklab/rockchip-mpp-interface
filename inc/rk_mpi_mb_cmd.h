@@ -10,8 +10,10 @@ extern "C" {
 #endif
 #endif /* __cplusplus */
 #define IO_STRING_MAX_LEN 16
+#ifndef SET_STRUCT_SIZE
 #define SET_STRUCT_SIZE(struct_name, p) ((p)->struct_size = sizeof(struct struct_name))
 #define STRUCT_SIZE_INVALID(struct_name, p) ((p)->struct_size != sizeof(struct struct_name))
+#endif
 
 /**
  * VALLOC_IOCTL_VERSION ioctl argument type.
@@ -55,6 +57,7 @@ struct valloc_mb {
     int struct_size;
     int size;
     int flags;
+    int paddr;
 };
 
 #define VALLOC_IOCTL_BASE           'a'
@@ -67,6 +70,8 @@ struct valloc_mb {
 #define VALLOC_IOCTL_MB_GET_FD        VALLOC_IOWR(0x01, struct valloc_mb)
 #define VALLOC_IOCTL_MB_CREATE        VALLOC_IOWR(0x02, struct valloc_mb)
 #define VALLOC_IOCTL_MB_DELETE        VALLOC_IOWR(0x03, struct valloc_mb)
+#define VALLOC_IOCTL_MB_GET_PHY_ADDR  VALLOC_IOWR(0x04, struct valloc_mb)
+#define VALLOC_IOCTL_MB_GET_ID        VALLOC_IOWR(0x05, struct valloc_mb)
 
 #ifdef __cplusplus
 #if __cplusplus
