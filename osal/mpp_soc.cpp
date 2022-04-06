@@ -662,6 +662,16 @@ static const MppSocInfo mpp_soc_infos[] = {
         {   NULL, NULL, NULL, NULL, },
         {   &vepu540c, NULL, NULL, NULL, },
     },
+    {   /*
+         * rv1103 has codec:
+         * 1 - RK H.264/H.265 4K mjpeg encoder
+         */
+        "rv1103",
+        ROCKCHIP_SOC_RV1103,
+        HAVE_RKVENC,
+        {   NULL, NULL, NULL, NULL, },
+        {   &vepu540c, NULL, NULL, NULL, },
+    },
 };
 
 static const MppSocInfo mpp_soc_default = {

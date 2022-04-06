@@ -43,6 +43,7 @@ typedef enum RockchipSocType_e {
     ROCKCHIP_SOC_RK3566,
     ROCKCHIP_SOC_RK3568,
     ROCKCHIP_SOC_RK3588,
+    ROCKCHIP_SOC_RV1103,
     ROCKCHIP_SOC_RV1106,
     ROCKCHIP_SOC_BUTT,
 } RockchipSocType;
