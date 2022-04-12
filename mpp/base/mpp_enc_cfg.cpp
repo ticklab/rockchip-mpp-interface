@@ -156,6 +156,8 @@ RK_U32 mpp_enc_cfg_debug = 0;
     ENTRY(prep, height,         S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, height) \
     ENTRY(prep, hor_stride,     S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, hor_stride) \
     ENTRY(prep, ver_stride,     S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, ver_stride) \
+    ENTRY(prep, max_width,      S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, max_width) \
+    ENTRY(prep, max_height,     S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, max_height) \
     ENTRY(prep, format,         S32, MppFrameFormat,    MPP_ENC_PREP_CFG_CHANGE_FORMAT,         prep, format) \
     ENTRY(prep, colorspace,     S32, MppFrameColorSpace,MPP_ENC_PREP_CFG_CHANGE_COLOR_SPACE,    prep, color) \
     ENTRY(prep, colorprim,      S32, MppFrameColorPrimaries, MPP_ENC_PREP_CFG_CHANGE_COLOR_PRIME, prep, colorprim) \
