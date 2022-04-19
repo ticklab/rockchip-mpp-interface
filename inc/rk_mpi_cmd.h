@@ -200,7 +200,8 @@ typedef struct vcodec_attr_t {
     RK_U32          buf_size;
     RK_U32      max_strm_cnt;
     RK_U32      shared_buf_en;
-    RK_U32      res[8];
+    RK_U32      smart_en;
+    RK_U32      res[7];
 
 } vcodec_attr;
 
