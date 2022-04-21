@@ -22,6 +22,26 @@ set(MPP_DRIVER
 	driver/mpp_vcodec_clinet.c
 )
 
+if(ANDROID)
+    set(MPP_OS
+        android/os_mem.c
+        android/os_env.c
+        android/os_log.c
+        )
+elseif(UNIX)
+    set(MPP_OS
+        linux/os_mem.c
+        linux/os_env.c
+        linux/os_log.cpp
+        )
+else()
+    set(MPP_OS
+        windows/os_mem.c
+        windows/os_env.c
+        windows/os_log.c
+        )
+endif()
+
 add_library(osal STATIC
     mpp_mem_pool.cpp
     mpp_callback.cpp
@@ -36,17 +56,8 @@ add_library(osal STATIC
 	mpp_chan.cpp
     osal_2str.c
     # Those files have a compiler marco protection, so only target
-    # OS will be built
-    android/os_mem.c
-    android/os_env.c
-    android/os_log.c
-    linux/os_mem.c
-    linux/os_env.c
-    linux/os_log.cpp
-    windows/os_mem.c
-    windows/os_env.c
-    windows/os_log.c
     ${MPP_DRIVER}
+    ${MPP_OS}
 )
 
 target_link_libraries(osal ${CMAKE_THREAD_LIBS_INIT})
