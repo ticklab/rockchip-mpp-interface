@@ -385,6 +385,9 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
     case MPP_ENC_INSRT_USERDATA: {
         size = sizeof(MppEncUserData);
     } break;
+    case MPP_ENC_SET_CHANGE_STREAM_TYPE : {
+        size = sizeof(vcodec_attr);
+    } break;
 
     default : {
         size = 0;
