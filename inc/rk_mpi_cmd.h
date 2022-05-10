@@ -205,8 +205,8 @@ typedef struct vcodec_attr_t {
     RK_U32      max_width;
     RK_U32      max_height;
     RK_U32      max_lt_cnt;
-    RK_U32      res[4];
-
+    RK_U32      qpmap_en;
+    RK_U32      res[3];
 } vcodec_attr;
 
 #include "rk_vdec_cmd.h"
