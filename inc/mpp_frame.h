@@ -397,7 +397,10 @@ typedef struct mpp_frame_infos_t {
     RK_U64  pts;
     RK_S32  jpeg_chan_id;
     void    *osd_buf;
-    RK_U32  res[10];
+    RK_S32  mpi_buf_id;
+    void    *jpg_combo_osd_buf;
+    RK_U32  is_gray;
+    RK_U32  res[7];
 } mpp_frame_infos;
 
 /*
