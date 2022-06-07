@@ -151,6 +151,8 @@ RK_U32 mpp_enc_cfg_debug = 0;
     ENTRY(rc,   hier_qp_delta,  St,  RK_S32 *,          MPP_ENC_RC_CFG_CHANGE_HIER_QP,          rc, hier_qp_delta) \
     ENTRY(rc,   hier_frame_num, St,  RK_S32 *,          MPP_ENC_RC_CFG_CHANGE_HIER_QP,          rc, hier_frame_num) \
     ENTRY(rc,   stats_time,     S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_ST_TIME,          rc, stats_time) \
+    ENTRY(rc,   fm_lvl_qp_i,    S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_FM_LV_QP,         rc, fm_lvl_qp_min_i) \
+    ENTRY(rc,   fm_lvl_qp_p,    S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_FM_LV_QP,         rc, fm_lvl_qp_min_p) \
     /* prep config */ \
     ENTRY(prep, width,          S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, width) \
     ENTRY(prep, height,         S32, RK_S32,            MPP_ENC_PREP_CFG_CHANGE_INPUT,          prep, height) \
@@ -215,6 +217,7 @@ RK_U32 mpp_enc_cfg_debug = 0;
     ENTRY(h265, qp_delta_ip,    S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_QP_IP,            rc, qp_delta_ip) \
     ENTRY(h265, sao_luma_disable,   S32, RK_S32,        MPP_ENC_H265_CFG_SAO_CHANGE,            codec.h265, sao_cfg.slice_sao_luma_disable) \
     ENTRY(h265, sao_chroma_disable, S32, RK_S32,        MPP_ENC_H265_CFG_SAO_CHANGE,            codec.h265, sao_cfg.slice_sao_chroma_disable) \
+    ENTRY(h265, sao_bit_ratio, S32, RK_S32,             MPP_ENC_H265_CFG_SAO_CHANGE,            codec.h265, sao_cfg.sao_bit_ratio) \
     /* vp8 config */ \
     ENTRY(vp8,  qp_init,        S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_QP_INIT,          rc, qp_init) \
     ENTRY(vp8,  qp_min,         S32, RK_S32,            MPP_ENC_RC_CFG_CHANGE_QP_RANGE,         rc, qp_min) \
