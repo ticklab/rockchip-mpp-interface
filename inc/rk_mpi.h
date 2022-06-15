@@ -234,6 +234,19 @@ extern "C" {
 MPP_RET mpp_create(MppCtx *ctx, MppApi **mpi);
 /**
  * @ingroup rk_mpi
+ * @brief Create empty context structure and mpi function pointers.
+ *        Use functions in MppApi to access mpp services.
+ * @param[in,out] ctx pointer of the mpp context, refer to MpiImpl_t.
+ * @param[in,out] mpi pointer of mpi function, refer to MppApi.
+ * @param[in] flag setting to dump mpp version, set to 0 for fast boot
+ * @return 0 for success, others for failure. The return value is an
+ *         error code. For details, please refer mpp_err.h.
+ * @note This interface creates base flow context, all function calls
+ *       are based on it.
+ */
+MPP_RET mpp_create_ext(MppCtx *ctx, MppApi **mpi, RK_U32 flag);
+/**
+ * @ingroup rk_mpi
  * @brief Call after mpp_create to setup mpp type and video format.
  *        This function will call internal context init function.
  * @param[in] ctx The context of mpp, created by mpp_create().

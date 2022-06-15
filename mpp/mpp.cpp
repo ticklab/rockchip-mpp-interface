@@ -126,7 +126,7 @@ MPP_RET Mpp::init_ext(vcodec_attr *attr)
         mpp_err("mpp_vcodec dev open fail");
         return MPP_NOK;
     }
-    mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr->chan_id);
+    mpp_dbg_info("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr->chan_id);
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(*attr), attr);
     if (ret) {
         mpp_err("VCODEC_CHAN_CREATE channel fail \n");

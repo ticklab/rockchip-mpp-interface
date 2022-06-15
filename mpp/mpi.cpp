@@ -446,7 +446,7 @@ static MppApi mpp_api = {
     {0},
 };
 
-MPP_RET mpp_create(MppCtx *ctx, MppApi **mpi)
+MPP_RET mpp_create_ext(MppCtx *ctx, MppApi **mpi, RK_U32 flag)
 {
     mpp_env_get_u32("mpi_debug", &mpi_debug, 0);
 
@@ -484,10 +484,16 @@ MPP_RET mpp_create(MppCtx *ctx, MppApi **mpi)
         *mpi = p->api;
     } while (0);
 
-    show_mpp_version();
+    if (flag)
+        show_mpp_version();
 
     mpi_dbg_func("leave ret %d ctx %p mpi %p\n", ret, *ctx, *mpi);
     return ret;
+}
+
+MPP_RET mpp_create(MppCtx *ctx, MppApi **mpi)
+{
+    return mpp_create_ext(ctx, mpi, 1);
 }
 
 MPP_RET mpp_init(MppCtx ctx, MppCtxType type, MppCodingType coding)
