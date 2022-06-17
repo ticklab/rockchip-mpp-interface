@@ -211,7 +211,7 @@ typedef struct vcodec_attr_t {
     RK_U32      qpmap_en;
     RK_U32      chan_dup;
     RK_U32      motion_static_switch_en;
-    RK_U32      res[1];
+    RK_U32      only_smartp;
 } vcodec_attr;
 
 #include "rk_vdec_cmd.h"
