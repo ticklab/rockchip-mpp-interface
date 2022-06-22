@@ -154,6 +154,7 @@ struct venc_packet {
     RK_U32               buf_size;
 
     RK_U64               u64pts;
+    RK_U64               u64dts;
     RK_U32               flag;
     RK_U32               temporal_id;
     RK_U32               offset;
