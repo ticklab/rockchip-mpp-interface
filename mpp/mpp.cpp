@@ -59,6 +59,7 @@ Mpp::Mpp(MppCtx ctx = NULL)
       mEncVersion(0),
       mType(MPP_CTX_BUTT),
       mCoding(MPP_VIDEO_CodingUnused),
+      mChanDup(0),
       mClinetFd(-1),
       mExtraPacket(NULL),
       mDump(NULL)
@@ -132,14 +133,17 @@ MPP_RET Mpp::init_ext(vcodec_attr *attr)
         mpp_err("VCODEC_CHAN_CREATE channel fail \n");
     }
 
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
-    if (ret) {
-        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+    if (!attr->chan_dup) {
+        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+        if (ret) {
+            mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+        }
     }
 
     mInitDone = 1;
     mChanId = attr->chan_id;
     mType = attr->type;
+    mChanDup = attr->chan_dup;
     return ret;
 }
 
@@ -161,11 +165,14 @@ void Mpp::clear()
         mpp_vcodec_close(mClinetFd);
 
 
-    mpp_free_chan(this, mType);
+    if (!mChanDup)
+        mpp_free_chan(this, mType);
 }
 
 MPP_RET Mpp::start()
 {
+    if (mChanDup)
+        return MPP_OK;
     MPP_RET ret = MPP_OK;
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
     if (ret) {
@@ -176,6 +183,8 @@ MPP_RET Mpp::start()
 
 MPP_RET Mpp::stop()
 {
+    if (mChanDup)
+        return MPP_OK;
     MPP_RET ret = MPP_OK;
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
     if (ret) {
@@ -186,6 +195,8 @@ MPP_RET Mpp::stop()
 
 MPP_RET Mpp::pause()
 {
+    if (mChanDup)
+        return MPP_OK;
     MPP_RET ret = MPP_OK;
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_PAUSE, 0, 0, 0);
     if (ret) {
@@ -196,6 +207,8 @@ MPP_RET Mpp::pause()
 
 MPP_RET Mpp::resume()
 {
+    if (mChanDup)
+        return MPP_OK;
     MPP_RET ret = MPP_OK;
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_RESUME, 0, 0, 0);
     if (ret) {
@@ -403,6 +416,8 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
 
 MPP_RET Mpp::reset()
 {
+    if (mChanDup)
+        return MPP_OK;
     if (!mInitDone)
         return MPP_ERR_INIT;
 

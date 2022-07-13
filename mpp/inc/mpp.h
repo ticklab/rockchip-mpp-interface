@@ -186,6 +186,7 @@ private:
 
     MppCtxType      mType;
     MppCodingType   mCoding;
+    RK_U32          mChanDup;
 
     RK_U32          mInitDone;
     RK_U32          mMultiFrame;
