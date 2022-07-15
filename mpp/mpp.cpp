@@ -373,6 +373,7 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
     case MPP_ENC_SET_SEI_CFG : {
         size = sizeof(RK_U32);
     } break;
+    case MPP_ENC_GET_REF_CFG :
     case MPP_ENC_SET_REF_CFG : {
         size = sizeof(MppEncRefParam);
     } break;

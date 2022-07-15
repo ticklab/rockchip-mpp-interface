@@ -43,6 +43,7 @@ typedef struct MppEncCfgSet_t {
     MppEncSliceSplit    split;
     MppEncROICfg        roi;
     MppEncOSDData3      osd;
+    MppEncRefParam      ref_param;
     MppEncRefCfg        ref_cfg;
 } MppEncCfgSet;
 

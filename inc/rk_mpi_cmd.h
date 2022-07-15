@@ -175,6 +175,7 @@ typedef enum {
 
     MPP_ENC_CFG_REF                     = CMD_MODULE_CODEC | CMD_CTX_ID_ENC | CMD_ENC_CFG_REF,
     MPP_ENC_SET_REF_CFG,                /* set MppEncRefCfg structure */
+    MPP_ENC_GET_REF_CFG,                /* get MppEncRefCfg structure */
 
     MPP_ENC_CFG_OSD                     = CMD_MODULE_CODEC | CMD_CTX_ID_ENC | CMD_ENC_CFG_OSD,
     MPP_ENC_SET_OSD_PLT_CFG,            /* set OSD palette, parameter should be pointer to MppEncOSDPltCfg */
