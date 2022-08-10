@@ -154,11 +154,12 @@ Mpp::~Mpp ()
 
 void Mpp::clear()
 {
-
-    MPP_RET ret = MPP_OK;
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_DESTROY, 0, 0, 0);
-    if (ret) {
-        mpp_err("VCODEC_CHAN_DESTROY channel fail \n");
+    if (!mChanDup) {
+        MPP_RET ret = MPP_OK;
+        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_DESTROY, 0, 0, 0);
+        if (ret) {
+            mpp_err("VCODEC_CHAN_DESTROY channel fail \n");
+        }
     }
 
     if (mClinetFd >= 0)
