@@ -391,6 +391,7 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
     case MPP_ENC_SET_REF_CFG : {
         size = sizeof(MppEncRefParam);
     } break;
+    case MPP_ENC_GET_ROI_CFG:
     case MPP_ENC_SET_ROI_CFG: {
         size = sizeof(MppEncROICfg);
     } break;
