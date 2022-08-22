@@ -299,7 +299,7 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
         mpp_err("select failed!\n");
         return MPP_NOK;
     } else if (ret == 0) {
-        mpp_err("get venc stream time out\n");
+        // mpp_err("get venc stream time out\n");
         return MPP_NOK;
     } else {
         if (FD_ISSET(mClinetFd, &read_fds)) {
