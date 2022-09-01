@@ -897,7 +897,7 @@ typedef struct MppEncH265SaoCfg_t {
 typedef struct MppEncH265TransCfg_t {
     RK_U32  transquant_bypass_enabled_flag;
     RK_U32  transform_skip_enabled_flag;
-    RK_U32  defalut_ScalingList_enable;             /* default: 0 */
+    RK_U32  scaling_list_mode;             /* default: 0 */
     RK_S32  cb_qp_offset;
     RK_S32  cr_qp_offset;
 } MppEncH265TransCfg;

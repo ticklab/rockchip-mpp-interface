@@ -61,7 +61,7 @@ typedef struct H265ePicParams_t {
 
     union {
         struct {
-            RK_U32  scaling_list_enabled_flag                    : 1;
+            RK_U32  scaling_list_mode                            : 2;
             RK_U32  amp_enabled_flag                            : 1;
             RK_U32  sample_adaptive_offset_enabled_flag         : 1;
             RK_U32  pcm_enabled_flag                            : 1;
@@ -78,7 +78,7 @@ typedef struct H265ePicParams_t {
             RK_U32  num_extra_slice_header_bits                 : 3;
             RK_U32  sign_data_hiding_enabled_flag               : 1;
             RK_U32  cabac_init_present_flag                     : 1;
-            RK_U32  ReservedBits3                               : 5;
+            RK_U32  ReservedBits3                               : 4;
         };
         RK_U32 CodingParamToolFlags;
     };
