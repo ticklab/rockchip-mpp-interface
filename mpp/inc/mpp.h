@@ -193,6 +193,7 @@ private:
 
     RK_U32          mStatus;
     RK_S32          mClinetFd;
+    struct timeval  mTimeout;
     /* decoder paramter before init */
     MppDecCfgSet    mDecInitcfg;
     RK_U32          mParserFastMode;

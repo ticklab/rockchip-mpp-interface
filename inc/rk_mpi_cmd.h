@@ -74,6 +74,7 @@ typedef enum {
      */
     MPP_SET_INPUT_TIMEOUT,              /* parameter type RK_S64 */
     MPP_SET_OUTPUT_TIMEOUT,             /* parameter type RK_S64 */
+    MPP_SET_SELECT_TIMEOUT,             /* parameter type struct timeval */
 
     MPP_STATE_CMD_BASE                  = CMD_MODULE_MPP | CMD_STATE_OPS,
     MPP_START,

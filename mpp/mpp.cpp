@@ -66,6 +66,8 @@ Mpp::Mpp(MppCtx ctx = NULL)
 {
     mpp_env_get_u32("mpp_debug", &mpp_debug, 0);
     mOutputTimeout = MPP_POLL_BLOCK;
+    mTimeout.tv_sec  = 0;
+    mTimeout.tv_usec = 100000;
 
 }
 
@@ -291,9 +293,8 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
     FD_ZERO(&read_fds);
     FD_SET(mClinetFd, &read_fds);
 
-    timeout.tv_sec  = 10;
-    timeout.tv_usec = 0;
     memset(enc_packet, 0, sizeof(venc_packet));
+    memcpy(&timeout, &mTimeout, sizeof(timeout));
     ret = select(mClinetFd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret < 0) {
         mpp_err("select failed!\n");
@@ -403,6 +404,12 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
     } break;
     case MPP_ENC_SET_CHANGE_STREAM_TYPE : {
         size = sizeof(vcodec_attr);
+    } break;
+    case MPP_SET_SELECT_TIMEOUT: {
+        struct timeval *p = (struct timeval *)param;
+        mTimeout.tv_sec = p->tv_sec;
+        mTimeout.tv_usec = p->tv_usec;
+        return MPP_OK;
     } break;
 
     default : {
