@@ -244,7 +244,9 @@ RK_U32 mpp_enc_cfg_debug = 0;
     ENTRY(hw,   aq_thrd_i,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_THRD_I,        hw, aq_thrd_i) \
     ENTRY(hw,   aq_thrd_p,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_THRD_P,        hw, aq_thrd_p) \
     ENTRY(hw,   aq_step_i,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_STEP_I,        hw, aq_step_i) \
-    ENTRY(hw,   aq_step_p,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_STEP_P,        hw, aq_step_p)
+    ENTRY(hw,   aq_step_p,      St,  RK_S32 *,          MPP_ENC_HW_CFG_CHANGE_AQ_STEP_P,        hw, aq_step_p) \
+    /* quality fine tuning config */ \
+    ENTRY(tune, scene_mode,     S32, MppEncSceneMode,   MPP_ENC_TUNE_CFG_CHANGE_SCENE_MODE,     tune, scene_mode)
 
 ENTRY_TABLE(EXPAND_AS_FUNC)
 ENTRY_TABLE(EXPAND_AS_API)
@@ -258,7 +260,7 @@ RK_S32 const_strlen(const char* str)
     return *str ? 1 + const_strlen(str + 1) : 0;
 }
 
-static RK_S32 node_len = ENTRY_TABLE(EXPAND_AS_STRLEN) - 61;
+static RK_S32 node_len = ENTRY_TABLE(EXPAND_AS_STRLEN) - 56;
 
 class MppEncCfgService
 {

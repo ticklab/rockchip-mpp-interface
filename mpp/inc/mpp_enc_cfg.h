@@ -45,6 +45,7 @@ typedef struct MppEncCfgSet_t {
     MppEncOSDData3      osd;
     MppEncRefParam      ref_param;
     MppEncRefCfg        ref_cfg;
+    MppEncFineTuneCfg tune;
 } MppEncCfgSet;
 
 #endif /*__MPP_ENC_CFG_H__*/
