@@ -132,13 +132,13 @@ MPP_RET Mpp::init_ext(vcodec_attr *attr)
     mpp_dbg_info("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr->chan_id);
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(*attr), attr);
     if (ret) {
-        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+        mpp_err("VCODEC_CHAN_CREATE channel %d fail \n", attr->chan_id);
     }
 
     if (!attr->chan_dup) {
         ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
         if (ret) {
-            mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+            mpp_err("VCODEC_CHAN_CREATE channel %d fail \n", attr->chan_id);
         }
     }
 
