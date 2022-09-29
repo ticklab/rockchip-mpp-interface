@@ -361,6 +361,8 @@ typedef struct MppEncRcCfg_t {
     RK_S32                  qp_delta_vi;                /* delta qp between vi and P */
     RK_S32                  fm_lvl_qp_min_i;
     RK_S32                  fm_lvl_qp_min_p;
+    RK_S32                  fm_lvl_qp_max_i;
+    RK_S32                  fm_lvl_qp_max_p;
 
     RK_S32                  hier_qp_en;
     RK_S32                  hier_qp_delta[4];
