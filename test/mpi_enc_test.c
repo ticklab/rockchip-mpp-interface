@@ -316,6 +316,13 @@ MPP_RET test_mpp_enc_cfg_setup(MpiEncTestData *p)
     if (!p->bps)
         p->bps = p->width * p->height / 8 * (p->fps_out_num / p->fps_out_den);
 
+
+    ret = mpi->control(ctx, MPP_ENC_GET_CFG, cfg);
+    if (ret) {
+        mpp_err("mpi control enc set cfg failed ret %d\n", ret);
+        goto RET;
+    }
+
     mpp_enc_cfg_set_s32(cfg, "prep:width", p->width);
     mpp_enc_cfg_set_s32(cfg, "prep:height", p->height);
     mpp_enc_cfg_set_s32(cfg, "prep:hor_stride", p->hor_stride);
@@ -757,8 +764,15 @@ MPP_RET test_mpp_run(MpiEncTestData *p)
                 p->pkt_eos = 0;
 
                 if (p->fp_output && src_ptr) {
-                    fwrite(src_ptr + enc_packet.offset, 1, len, p->fp_output);
-                    fflush(p->fp_output);
+                    if ( enc_packet.offset + len < enc_packet.buf_size) {
+                        fwrite(src_ptr + enc_packet.offset, 1, len, p->fp_output);
+                        fflush(p->fp_output);
+                    } else {
+                        RK_U32 part_len = enc_packet.offset + len - enc_packet.buf_size;
+                        fwrite(src_ptr + enc_packet.offset, 1, len - part_len, p->fp_output);
+                        fwrite(src_ptr, 1, part_len, p->fp_output);
+                        fflush(p->fp_output);
+                    }
                 }
 
                 if (src_ptr)
