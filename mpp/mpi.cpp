@@ -573,6 +573,42 @@ MPP_RET mpp_destroy(MppCtx ctx)
     return ret;
 }
 
+MPP_RET mpp_get_fd(MppCtx ctx, RK_S32 *fd)
+{
+    MPP_RET ret = MPP_OK;
+    MpiImpl *p = (MpiImpl*)ctx;
+
+    mpi_dbg_func("enter ctx %p\n", ctx);
+    do {
+        ret = check_mpp_ctx(p);
+        if (ret)
+            break;
+
+        ret = p->ctx->get_fd(fd);
+    } while (0);
+
+    mpi_dbg_func("leave ctx %p ret %d\n", ctx, ret);
+    return ret;
+}
+
+MPP_RET mpp_close_fd(MppCtx ctx, RK_S32 fd)
+{
+    MPP_RET ret = MPP_OK;
+    MpiImpl *p = (MpiImpl*)ctx;
+
+    mpi_dbg_func("enter ctx %p\n", ctx);
+    do {
+        ret = check_mpp_ctx(p);
+        if (ret)
+            break;
+
+        ret = p->ctx->close_fd(fd);
+    } while (0);
+
+    mpi_dbg_func("leave ctx %p ret %d\n", ctx, ret);
+    return ret;
+}
+
 MPP_RET mpp_check_support_format(MppCtxType type, MppCodingType coding)
 {
     MPP_RET ret = MPP_NOK;

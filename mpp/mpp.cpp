@@ -573,3 +573,24 @@ MPP_RET Mpp::notify(MppBufferGroup group)
 
     return ret;
 }
+
+MPP_RET Mpp::get_fd(RK_S32 *fd)
+{
+    MPP_RET ret = MPP_OK;
+
+    if (mClinetFd >= 0)
+        *fd = dup(mClinetFd);
+    else
+        *fd = -1;
+
+    if (*fd < 0)
+        ret = MPP_NOK;
+    return ret;
+}
+
+MPP_RET Mpp::close_fd(RK_S32 fd)
+{
+    if (fd >= 0)
+        close(fd);
+    return MPP_OK;
+}

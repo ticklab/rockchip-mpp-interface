@@ -279,6 +279,24 @@ MPP_RET mpp_init_ext(MppCtx ctx, vcodec_attr *attr);
 MPP_RET mpp_destroy(MppCtx ctx);
 /**
  * @ingroup rk_mpi
+ * @brief Get fd for user select.
+ * @param[in] ctx The context of mpp, created by mpp_create().
+ * @param[out] fd For user select fd.
+ * @return 0 for success, others for failure. The return value is an
+ *         error code. For details, please refer mpp_err.h.
+ */
+MPP_RET mpp_get_fd(MppCtx ctx, RK_S32 *fd);
+/**
+ * @ingroup rk_mpi
+ * @brief Close fd of user select.
+ * @param[in] ctx The context of mpp, created by mpp_create().
+ * @param[in] fd For user select fd.
+ * @return 0 for success, others for failure. The return value is an
+ *         error code. For details, please refer mpp_err.h.
+ */
+MPP_RET mpp_close_fd(MppCtx ctx, RK_S32 fd);
+/**
+ * @ingroup rk_mpi
  * @brief judge given format is supported or not by MPP.
  * @param[in] type specify decoder or encoder, refer to MppCtxType.
  * @param[in] coding specify video compression coding, refer to MppCodingType.

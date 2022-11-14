@@ -124,6 +124,9 @@ public:
     MPP_RET notify(RK_U32 flag);
     MPP_RET notify(MppBufferGroup group);
 
+    MPP_RET get_fd(RK_S32 *fd);
+    MPP_RET close_fd(RK_S32 fd);
+
     mpp_list        *mPackets;
     mpp_list        *mFrames;
     mpp_list        *mTimeStamps;
