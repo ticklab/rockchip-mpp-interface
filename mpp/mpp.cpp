@@ -91,10 +91,12 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     attr.type = type;
     attr.online = 0;
     attr.shared_buf_en = 0;
-    mClinetFd = mpp_vcodec_open();
     if (mClinetFd < 0) {
-        mpp_err("mpp_vcodec dev open fail");
-        return MPP_NOK;
+        mClinetFd = mpp_vcodec_open();
+        if (mClinetFd < 0) {
+            mpp_err("mpp_vcodec dev open fail");
+            return MPP_NOK;
+        }
     }
 
     mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr.chan_id);
@@ -114,6 +116,16 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     return ret;
 }
 
+MPP_RET Mpp::open_client(void)
+{
+    mClinetFd = mpp_vcodec_open();
+    if (mClinetFd < 0) {
+        mpp_err("mpp_vcodec dev open fail");
+        return MPP_NOK;
+    }
+    return MPP_OK;
+}
+
 MPP_RET Mpp::init_ext(vcodec_attr *attr)
 {
     MPP_RET ret = MPP_NOK;
@@ -124,10 +136,12 @@ MPP_RET Mpp::init_ext(vcodec_attr *attr)
         return MPP_NOK;
     }
 
-    mClinetFd = mpp_vcodec_open();
     if (mClinetFd < 0) {
-        mpp_err("mpp_vcodec dev open fail");
-        return MPP_NOK;
+        mClinetFd = mpp_vcodec_open();
+        if (mClinetFd < 0) {
+            mpp_err("mpp_vcodec dev open fail");
+            return MPP_NOK;
+        }
     }
     mpp_dbg_info("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr->chan_id);
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(*attr), attr);

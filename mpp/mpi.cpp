@@ -476,6 +476,7 @@ MPP_RET mpp_create_ext(MppCtx *ctx, MppApi **mpi, RK_U32 flag)
             ret = MPP_ERR_MALLOC;
             break;
         }
+        ret = p->ctx->open_client();
 
         mpp_api.version = 0;
         p->api      = &mpp_api;

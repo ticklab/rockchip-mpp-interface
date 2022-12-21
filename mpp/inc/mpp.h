@@ -98,6 +98,7 @@ class Mpp
 public:
     Mpp(MppCtx ctx);
     ~Mpp();
+    MPP_RET open_client();
     MPP_RET init(MppCtxType type, MppCodingType coding);
     MPP_RET init_ext(vcodec_attr *attr);
 
