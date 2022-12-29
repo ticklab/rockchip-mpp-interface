@@ -62,7 +62,8 @@ Mpp::Mpp(MppCtx ctx = NULL)
       mChanDup(0),
       mClinetFd(-1),
       mExtraPacket(NULL),
-      mDump(NULL)
+      mDump(NULL),
+      mInitDone(0)
 {
     mpp_env_get_u32("mpp_debug", &mpp_debug, 0);
     mOutputTimeout = MPP_POLL_BLOCK;
