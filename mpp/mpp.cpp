@@ -108,7 +108,7 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
 
     ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
     if (ret) {
-        mpp_err("VCODEC_CHAN_CREATE channel fail \n");
+        mpp_err("VCODEC_CHAN_START channel fail \n");
     }
 
     mInitDone = 1;
@@ -153,7 +153,7 @@ MPP_RET Mpp::init_ext(vcodec_attr *attr)
     if (!attr->chan_dup) {
         ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
         if (ret) {
-            mpp_err("VCODEC_CHAN_CREATE channel %d fail \n", attr->chan_id);
+            mpp_err("VCODEC_CHAN_START channel %d fail \n", attr->chan_id);
         }
     }
 
