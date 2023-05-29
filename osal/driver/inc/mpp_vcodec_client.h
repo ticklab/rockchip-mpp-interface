@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef __MPP_VCODEC_CLINET_H__
-#define __MPP_VCODEC_CLINET_H__
+#ifndef __mpp_vcodec_client_H__
+#define __mpp_vcodec_client_H__
 
 #include <asm/ioctl.h>
 #include "rk_type.h"

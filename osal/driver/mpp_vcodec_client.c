@@ -24,7 +24,7 @@
 #include "mpp_log.h"
 #include "mpp_env.h"
 #include "mpp_common.h"
-#include "mpp_vcodec_clinet.h"
+#include "mpp_vcodec_client.h"
 
 RK_S32 mpp_vcodec_open(void)
 {

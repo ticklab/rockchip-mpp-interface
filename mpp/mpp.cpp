@@ -40,7 +40,7 @@
 #include "mpp_frame_impl.h"
 #include "mpp_packet_impl.h"
 
-#include "mpp_vcodec_clinet.h"
+#include "mpp_vcodec_client.h"
 #include "mpp_enc_cfg_impl.h"
 
 #define MPP_TEST_FRAME_SIZE     SZ_1M

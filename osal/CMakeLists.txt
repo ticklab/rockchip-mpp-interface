@@ -20,7 +20,7 @@ else()
 endif()
 
 set(MPP_DRIVER
-	driver/mpp_vcodec_clinet.c
+	driver/mpp_vcodec_client.c
 )
 
 if(ANDROID)
