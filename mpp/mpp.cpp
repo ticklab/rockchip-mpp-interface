@@ -60,7 +60,7 @@ Mpp::Mpp(MppCtx ctx = NULL)
       mType(MPP_CTX_BUTT),
       mCoding(MPP_VIDEO_CodingUnused),
       mChanDup(0),
-      mClinetFd(-1),
+      mClientFd(-1),
       mExtraPacket(NULL),
       mDump(NULL),
       mInitDone(0)
@@ -92,21 +92,21 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
     attr.type = type;
     attr.online = 0;
     attr.shared_buf_en = 0;
-    if (mClinetFd < 0) {
-        mClinetFd = mpp_vcodec_open();
-        if (mClinetFd < 0) {
+    if (mClientFd < 0) {
+        mClientFd = mpp_vcodec_open();
+        if (mClientFd < 0) {
             mpp_err("mpp_vcodec dev open fail");
             return MPP_NOK;
         }
     }
 
-    mpp_log("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr.chan_id);
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(attr), &attr);
+    mpp_log("mClientFd %d open ok attr.chan_id %d", mClientFd, attr.chan_id);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_CREATE, 0, sizeof(attr), &attr);
     if (ret) {
         mpp_err("VCODEC_CHAN_CREATE channel fail \n");
     }
 
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_START, 0, 0, 0);
     if (ret) {
         mpp_err("VCODEC_CHAN_START channel fail \n");
     }
@@ -119,8 +119,8 @@ MPP_RET Mpp::init(MppCtxType type, MppCodingType coding)
 
 MPP_RET Mpp::open_client(void)
 {
-    mClinetFd = mpp_vcodec_open();
-    if (mClinetFd < 0) {
+    mClientFd = mpp_vcodec_open();
+    if (mClientFd < 0) {
         mpp_err("mpp_vcodec dev open fail");
         return MPP_NOK;
     }
@@ -137,21 +137,21 @@ MPP_RET Mpp::init_ext(vcodec_attr *attr)
         return MPP_NOK;
     }
 
-    if (mClinetFd < 0) {
-        mClinetFd = mpp_vcodec_open();
-        if (mClinetFd < 0) {
+    if (mClientFd < 0) {
+        mClientFd = mpp_vcodec_open();
+        if (mClientFd < 0) {
             mpp_err("mpp_vcodec dev open fail");
             return MPP_NOK;
         }
     }
-    mpp_dbg_info("mClinetFd %d open ok attr.chan_id %d", mClinetFd, attr->chan_id);
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CREATE, 0, sizeof(*attr), attr);
+    mpp_dbg_info("mClientFd %d open ok attr.chan_id %d", mClientFd, attr->chan_id);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_CREATE, 0, sizeof(*attr), attr);
     if (ret) {
         mpp_err("VCODEC_CHAN_CREATE channel %d fail \n", attr->chan_id);
     }
 
     if (!attr->chan_dup) {
-        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+        ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_START, 0, 0, 0);
         if (ret) {
             mpp_err("VCODEC_CHAN_START channel %d fail \n", attr->chan_id);
         }
@@ -173,15 +173,15 @@ void Mpp::clear()
 {
     if (!mChanDup) {
         MPP_RET ret = MPP_OK;
-        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_DESTROY, 0, 0, 0);
+        ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_DESTROY, 0, 0, 0);
         if (ret) {
             mpp_err("VCODEC_CHAN_DESTROY channel fail \n");
         }
     }
 
-    if (mClinetFd >= 0)
-        mpp_vcodec_close(mClinetFd);
-
+    if (mClientFd >= 0)
+        mpp_vcodec_close(mClientFd);
+    mClientFd = -1;
 
     if (!mChanDup)
         mpp_free_chan(this, mType);
@@ -192,7 +192,7 @@ MPP_RET Mpp::start()
     if (mChanDup)
         return MPP_OK;
     MPP_RET ret = MPP_OK;
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_START, 0, 0, 0);
     if (ret) {
         mpp_err("VCODEC_CHAN_START channel fail \n");
     }
@@ -204,7 +204,7 @@ MPP_RET Mpp::stop()
     if (mChanDup)
         return MPP_OK;
     MPP_RET ret = MPP_OK;
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_START, 0, 0, 0);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_START, 0, 0, 0);
     if (ret) {
         mpp_err("VCODEC_CHAN_START channel fail \n");
     }
@@ -216,7 +216,7 @@ MPP_RET Mpp::pause()
     if (mChanDup)
         return MPP_OK;
     MPP_RET ret = MPP_OK;
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_PAUSE, 0, 0, 0);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_PAUSE, 0, 0, 0);
     if (ret) {
         mpp_err("VCODEC_CHAN_PAUSE channel fail \n");
     }
@@ -228,7 +228,7 @@ MPP_RET Mpp::resume()
     if (mChanDup)
         return MPP_OK;
     MPP_RET ret = MPP_OK;
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_RESUME, 0, 0, 0);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_RESUME, 0, 0, 0);
     if (ret) {
         mpp_err("VCODEC_CHAN_RESUME channel fail \n");
     }
@@ -278,7 +278,7 @@ MPP_RET Mpp::put_frame(MppFrame frame)
     frame_info.fd = mpp_buffer_get_fd(buf);
     frame_info.pts = mpp_frame_get_pts(frame);
     frame_info.jpeg_chan_id = mpp_frame_get_jpege_chan_id(frame);
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_IN_FRM_RDY, 0, sizeof(frame_info), &frame_info);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_IN_FRM_RDY, 0, sizeof(frame_info), &frame_info);
     if (ret) {
         mpp_err("VCODEC_CHAN_IN_FRM_RDY  fail \n");
     }
@@ -306,11 +306,11 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
 
     fd_set read_fds;
     FD_ZERO(&read_fds);
-    FD_SET(mClinetFd, &read_fds);
+    FD_SET(mClientFd, &read_fds);
 
     memset(enc_packet, 0, sizeof(venc_packet));
     memcpy(&timeout, &mTimeout, sizeof(timeout));
-    ret = select(mClinetFd + 1, &read_fds, NULL, NULL, &timeout);
+    ret = select(mClientFd + 1, &read_fds, NULL, NULL, &timeout);
     if (ret < 0) {
         mpp_err("select failed!\n");
         return MPP_NOK;
@@ -318,11 +318,11 @@ MPP_RET Mpp::get_packet(MppPacket *packet)
         // mpp_err("get venc stream time out\n");
         return MPP_NOK;
     } else {
-        if (FD_ISSET(mClinetFd, &read_fds)) {
+        if (FD_ISSET(mClientFd, &read_fds)) {
             //void *dst_ptr = mpp_packet_get_pos(*packet);
             //enc_packet.buf_size = mpp_packet_get_size(*packet);
             //enc_packet.u64vir_addr = REQ_DATA_PTR(ptr);
-            ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_BUF_RDY, 0, sizeof(*enc_packet), enc_packet);
+            ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_OUT_STRM_BUF_RDY, 0, sizeof(*enc_packet), enc_packet);
             if (ret) {
                 mpp_err("VCODEC_CHAN_OUT_STRM_BUF_RDY fail \n");
                 return MPP_NOK;
@@ -343,8 +343,8 @@ MPP_RET Mpp::release_packet(MppPacket *packet)
         return MPP_NOK;
     }
 
-    if (mClinetFd >= 0) {
-        ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_OUT_STRM_END, 0, sizeof(*enc_packet), enc_packet);
+    if (mClientFd >= 0) {
+        ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_OUT_STRM_END, 0, sizeof(*enc_packet), enc_packet);
     }
     return ret;
 }
@@ -431,9 +431,9 @@ MPP_RET Mpp::control(MpiCmd cmd, MppParam param)
         size = 0;
     } break;
     }
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_CONTROL, cmd, size, param);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_CONTROL, cmd, size, param);
     if (ret) {
-        mpp_err("mClinetFd %d VCODEC_CHAN_CONTROL channel fail \n", mClinetFd);
+        mpp_err("mClientFd %d VCODEC_CHAN_CONTROL channel fail \n", mClientFd);
     }
     return ret;
 }
@@ -446,7 +446,7 @@ MPP_RET Mpp::reset()
         return MPP_ERR_INIT;
 
     MPP_RET ret = MPP_OK;
-    ret = mpp_vcodec_ioctl(mClinetFd, VCODEC_CHAN_RESET, 0, 0, 0);
+    ret = mpp_vcodec_ioctl(mClientFd, VCODEC_CHAN_RESET, 0, 0, 0);
     if (ret) {
         mpp_err("VCODEC_CHAN_RESET channel fail \n");
     }
@@ -593,8 +593,8 @@ MPP_RET Mpp::get_fd(RK_S32 *fd)
 {
     MPP_RET ret = MPP_OK;
 
-    if (mClinetFd >= 0)
-        *fd = dup(mClinetFd);
+    if (mClientFd >= 0)
+        *fd = dup(mClientFd);
     else
         *fd = -1;
 

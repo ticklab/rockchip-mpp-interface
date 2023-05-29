@@ -196,7 +196,7 @@ private:
     RK_U32          mMultiFrame;
 
     RK_U32          mStatus;
-    RK_S32          mClinetFd;
+    RK_S32          mClientFd;
     struct timeval  mTimeout;
     /* decoder paramter before init */
     MppDecCfgSet    mDecInitcfg;
