@@ -179,6 +179,8 @@ typedef struct RcCfg_s {
     RcSuperframeCfg super_cfg;
     RcDebreathCfg   debreath_cfg;
     RcHierQPCfg     hier_qp_cfg;
+    RK_S32          scene_mode;
+    RK_S32          motion_static_switch_enable;
 } RcCfg;
 
 /*

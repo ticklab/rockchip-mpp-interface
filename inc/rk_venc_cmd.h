@@ -1311,11 +1311,13 @@ typedef enum MppEncSceneMode_e {
 typedef enum MppEncFineTuneCfgChange_e {
     /* change on scene mode */
     MPP_ENC_TUNE_CFG_CHANGE_SCENE_MODE      = (1 << 0),
+    MPP_ENC_TUNE_CFG_CHANGE_MOTION_STATIC_SWITCH_ENABLE      = (1 << 1),
 } MppEncFineTuneCfgChange;
 
 typedef struct MppEncFineTuneCfg_t {
     RK_U32              change;
 
     MppEncSceneMode     scene_mode;
+    RK_S32              motion_static_switch_enable;
 } MppEncFineTuneCfg;
 #endif /*__RK_VENC_CMD_H__*/

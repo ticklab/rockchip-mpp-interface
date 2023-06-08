@@ -210,7 +210,7 @@ typedef struct vcodec_attr_t {
     RK_U32      max_lt_cnt;
     RK_U32      qpmap_en;
     RK_U32      chan_dup;
-    RK_U32      motion_static_switch_en;
+    RK_U32      res;
     RK_U32      only_smartp;
 } vcodec_attr;
 
